@@ -322,3 +322,20 @@ export function isAncestor(tree: LearningTree, ancestorId: string, descendantId:
   return path.some(node => node.id === ancestorId);
 }
 
+/**
+ * Get the next node in linear sequence (first child of current node)
+ * Returns null if no next node exists
+ */
+export function getNextNode(tree: LearningTree, nodeId: string): TreeNode | null {
+  const children = getChildren(tree, nodeId);
+  return children.length > 0 ? children[0] : null;
+}
+
+/**
+ * Get the previous node in linear sequence (parent of current node)
+ * Returns null if no previous node exists (at root)
+ */
+export function getPreviousNode(tree: LearningTree, nodeId: string): TreeNode | null {
+  return getParent(tree, nodeId);
+}
+

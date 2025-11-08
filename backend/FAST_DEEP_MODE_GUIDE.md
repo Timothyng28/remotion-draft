@@ -9,26 +9,28 @@ The video generation pipeline now supports two modes for balancing quality and s
 
 ## Mode Comparison
 
-| Feature | Deep Mode | Fast Mode |
-|---------|-----------|-----------|
-| **Code Generation** | Anthropic Claude Sonnet 4.5 | Cerebras Qwen 3 Instruct |
-| **Quality** | ⭐⭐⭐⭐⭐ Premium | ⭐⭐⭐⭐ Good |
-| **Speed per Section** | 10-15 seconds | 3-5 seconds |
-| **Total Time** | ~50-70 seconds | ~40-60 seconds |
-| **Best For** | Production videos | Previews, iterations, testing |
-| **Cost** | Higher (Anthropic) | Lower (Cerebras) |
+| Feature               | Deep Mode                   | Fast Mode                     |
+| --------------------- | --------------------------- | ----------------------------- |
+| **Code Generation**   | Anthropic Claude Sonnet 4.5 | Cerebras Qwen 3 Instruct      |
+| **Quality**           | ⭐⭐⭐⭐⭐ Premium          | ⭐⭐⭐⭐ Good                 |
+| **Speed per Section** | 10-15 seconds               | 3-5 seconds                   |
+| **Total Time**        | ~50-70 seconds              | ~40-60 seconds                |
+| **Best For**          | Production videos           | Previews, iterations, testing |
+| **Cost**              | Higher (Anthropic)          | Lower (Cerebras)              |
 
 ## Usage
 
 ### 1. Command Line (CLI)
 
 **Deep Mode (Default):**
+
 ```bash
 modal run backend/modal/main_video_generator_dev_modular.py \
   --prompt "Explain backpropagation in machine learning"
 ```
 
 **Fast Mode:**
+
 ```bash
 modal run backend/modal/main_video_generator_dev_modular.py \
   --prompt "Explain backpropagation in machine learning" \
@@ -38,6 +40,7 @@ modal run backend/modal/main_video_generator_dev_modular.py \
 ### 2. API (POST /generate_video_api)
 
 **Deep Mode (Default):**
+
 ```json
 {
   "topic": "Explain backpropagation in machine learning",
@@ -46,6 +49,7 @@ modal run backend/modal/main_video_generator_dev_modular.py \
 ```
 
 **Fast Mode:**
+
 ```json
 {
   "topic": "Explain backpropagation in machine learning",
@@ -80,25 +84,28 @@ for update in generate_fn.remote_gen(
 ## When to Use Each Mode
 
 ### Use **Deep Mode** When:
+
 ✅ Creating final production videos  
 ✅ Quality is more important than speed  
 ✅ You need the most accurate and polished Manim animations  
 ✅ You're okay with waiting an extra 10-20 seconds  
-✅ Budget allows for premium AI services  
+✅ Budget allows for premium AI services
 
 ### Use **Fast Mode** When:
+
 ✅ Iterating on video ideas quickly  
 ✅ Generating preview/draft videos  
 ✅ Testing different topics or prompts  
 ✅ Speed is critical (demos, live presentations)  
 ✅ Cost optimization is important  
-✅ Quality is "good enough" for your use case  
+✅ Quality is "good enough" for your use case
 
 ## Performance Data
 
 Based on a 5-section video about "Explain backpropagation in machine learning":
 
 ### Deep Mode Timeline
+
 ```
 🎬 Plan Generation        →  8 seconds
 🎤 Audio Pre-generation   → 12 seconds (parallel)
@@ -110,6 +117,7 @@ Based on a 5-section video about "Explain backpropagation in machine learning":
 ```
 
 ### Fast Mode Timeline
+
 ```
 🎬 Plan Generation        →  8 seconds
 🎤 Audio Pre-generation   → 12 seconds (parallel)
@@ -125,12 +133,14 @@ Based on a 5-section video about "Explain backpropagation in machine learning":
 ## Quality Examples
 
 ### Deep Mode Output
+
 - Complex animation choreography
 - More natural code structure
 - Better edge case handling
 - Premium educational quality
 
 ### Fast Mode Output
+
 - Clean, functional animations
 - Good code quality
 - Handles most use cases well
@@ -140,18 +150,19 @@ Based on a 5-section video about "Explain backpropagation in machine learning":
 
 Approximate costs per 5-section video:
 
-| Component | Deep Mode | Fast Mode | Savings |
-|-----------|-----------|-----------|---------|
-| Plan Generation (Cerebras) | $0.002 | $0.002 | - |
-| Code Gen (5 sections) | $0.15 | $0.01 | **$0.14** |
-| Audio (ElevenLabs) | $0.05 | $0.05 | - |
-| **Total** | **$0.20** | **$0.06** | **$0.14 (70%)** |
+| Component                  | Deep Mode | Fast Mode | Savings         |
+| -------------------------- | --------- | --------- | --------------- |
+| Plan Generation (Cerebras) | $0.002    | $0.002    | -               |
+| Code Gen (5 sections)      | $0.15     | $0.01     | **$0.14**       |
+| Audio (ElevenLabs)         | $0.05     | $0.05     | -               |
+| **Total**                  | **$0.20** | **$0.06** | **$0.14 (70%)** |
 
-*Note: Costs are approximate and may vary based on prompt complexity*
+_Note: Costs are approximate and may vary based on prompt complexity_
 
 ## Recommendations
 
 ### For Development/Testing
+
 ```bash
 # Use fast mode for rapid iteration
 modal run backend/modal/main_video_generator_dev_modular.py \
@@ -160,6 +171,7 @@ modal run backend/modal/main_video_generator_dev_modular.py \
 ```
 
 ### For Production
+
 ```bash
 # Use deep mode for final videos
 modal run backend/modal/main_video_generator_dev_modular.py \
@@ -168,6 +180,7 @@ modal run backend/modal/main_video_generator_dev_modular.py \
 ```
 
 ### For Hybrid Workflow
+
 1. **Prototype** with Fast mode (iterate quickly)
 2. **Refine** prompt based on fast results
 3. **Finalize** with Deep mode (production quality)
@@ -177,22 +190,27 @@ modal run backend/modal/main_video_generator_dev_modular.py \
 ### Fast Mode Issues
 
 **Problem:** Code quality not meeting expectations
+
 - **Solution:** Switch to Deep mode for that specific video
 
 **Problem:** Cerebras API rate limits
+
 - **Solution:** Add delays between requests or use Deep mode
 
 ### Deep Mode Issues
 
 **Problem:** Too slow for iteration
+
 - **Solution:** Use Fast mode for prototyping, Deep for finals
 
 **Problem:** High API costs
+
 - **Solution:** Use Fast mode more often, reserve Deep for important videos
 
 ## Future Enhancements
 
 Planned improvements:
+
 - ⏳ Auto-mode: Automatically choose mode based on complexity
 - ⏳ Hybrid mode: Use Deep for critical sections, Fast for others
 - ⏳ Quality presets: Ultra-fast, Fast, Balanced, Deep, Ultra-deep
@@ -207,4 +225,3 @@ Planned improvements:
 - **Recommendation:** Fast for iteration, Deep for production
 
 🚀 **Start using Fast mode today for 50% faster iterations!**
-
