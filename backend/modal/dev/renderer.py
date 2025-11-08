@@ -288,16 +288,47 @@ Return ONLY the fixed Python code."""
             file_size = section_video.stat().st_size / (1024 * 1024)
             print(f"✓ [Container {section_num}] Video rendered successfully ({file_size:.2f} MB)")
 
-            # Generate thumbnail (first frame)
+            # Generate thumbnail (midpoint frame for better representation)
             thumbnail_path = None
             try:
-                print(f"🖼️  [Container {section_num}] Generating thumbnail (first frame)...")
+                print(f"🖼️  [Container {section_num}] Generating thumbnail (midpoint frame)...")
                 thumbnail_file = work_dir / f"section_{section_num}_thumbnail.png"
+                
+                # First, get video duration to find midpoint
+                try:
+                    duration_result = subprocess.run(
+                        [
+                            "ffprobe",
+                            "-v", "error",
+                            "-show_entries", "format=duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1",
+                            str(section_video)
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    
+                    if duration_result.returncode == 0 and duration_result.stdout.strip():
+                        duration = float(duration_result.stdout.strip())
+                        midpoint = duration / 2.0
+                        print(f"   Video duration: {duration:.2f}s, seeking to midpoint: {midpoint:.2f}s")
+                    else:
+                        # Fallback to frame 60 if duration detection fails
+                        midpoint = 5.0  # ~5 seconds in (frame 60 at 12fps)
+                        print(f"   Could not detect duration, using fallback: {midpoint:.2f}s")
+                except Exception as e:
+                    # Fallback to frame 60 if ffprobe fails
+                    midpoint = 5.0
+                    print(f"   Duration detection failed, using fallback: {midpoint:.2f}s")
+                
+                # Extract frame at midpoint
                 thumbnail_result = subprocess.run(
                     [
                         "ffmpeg",
+                        "-ss", str(midpoint),  # Seek to midpoint
                         "-i", str(section_video),
-                        "-vframes", "15",  # Extract only first frame
+                        "-vframes", "1",  # Extract one frame
                         "-q:v", "2",      # High quality
                         str(thumbnail_file)
                     ],
