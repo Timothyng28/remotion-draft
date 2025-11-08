@@ -21,6 +21,8 @@ export interface VideoSegment {
   parentSegmentId?: string; // ID of the segment that led to this one
   videoUrl?: string; // URL to the rendered video (set after rendering)
   renderingStatus?: 'pending' | 'rendering' | 'completed' | 'failed'; // Status of video rendering
+  voiceoverScript?: string; // Combined narration text for this segment
+  userAnswer?: string; // Learner's response collected during this segment
 }
 
 /**
@@ -134,6 +136,49 @@ export interface EvaluateAnswerResponse {
 }
 
 /**
+ * A single reflection question
+ */
+export interface ReflectionQuestion {
+  id: string;
+  prompt: string;
+  placeholder?: string;
+}
+
+/**
+ * Response from backend when generating reflection questions
+ */
+export interface GenerateReflectionQuestionsResponse {
+  success: boolean;
+  questions?: ReflectionQuestion[];
+  error?: string;
+}
+
+/**
+ * Closing question request payload
+ */
+export interface ClosingQuestionPayload {
+  topic: string;
+  voiceoverSections: Array<{
+    section: number;
+    script: string;
+  }>;
+  userResponses: Array<{
+    prompt: string;
+    answer: string;
+  }>;
+  summary?: string;
+}
+
+/**
+ * Response from backend when generating a closing question
+ */
+export interface GenerateClosingQuestionResponse {
+  success: boolean;
+  question?: string;
+  error?: string;
+}
+
+/**
  * Helper type for creating new learning contexts
  */
 export type ContextUpdate = Partial<LearningContext>;
@@ -218,6 +263,13 @@ export function generateNodeId(): string {
 
 // Legacy types kept for backward compatibility during migration
 // TODO: Remove these once all old code is updated
+
+/**
+ * @deprecated Use VideoSegment instead
+ */
+export interface ColorConfig {
+  [key: string]: string;
+}
 
 /**
  * @deprecated Use VideoSegment instead

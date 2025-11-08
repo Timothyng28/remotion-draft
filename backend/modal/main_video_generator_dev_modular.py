@@ -106,6 +106,10 @@ from dev.config import (
     RENDER_SECRETS,
 )
 from dev.generator_logic import generate_educational_video_logic
+from dev.reflection_logic import (
+    generate_closing_question_logic,
+    generate_reflection_questions_logic,
+)
 
 # Import pure Python logic functions (now available in image)
 from dev.renderer import render_single_scene_logic
@@ -184,6 +188,32 @@ async def generate_video_api(item: dict):
     Delegates to pure Python logic function.
     """
     return await generate_video_api_logic(item, generate_educational_video)
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name(s) for s in MAIN_SECRETS],
+)
+@modal.fastapi_endpoint(method="POST")
+async def generate_reflection_questions(session_data: dict):
+    """
+    FastAPI endpoint for generating reflection questions.
+    Delegates to pure Python logic function.
+    """
+    return generate_reflection_questions_logic(session_data)
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name(s) for s in MAIN_SECRETS],
+)
+@modal.fastapi_endpoint(method="POST")
+async def generate_closing_question(request_data: dict):
+    """
+    FastAPI endpoint for generating a single closing question.
+    Delegates to pure Python logic function.
+    """
+    return generate_closing_question_logic(request_data)
 
 
 @app.local_entrypoint()

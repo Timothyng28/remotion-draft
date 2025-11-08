@@ -4,12 +4,55 @@ Pure Python logic without Modal decorators
 Handles the complete workflow: planning, code generation, rendering, upload
 """
 
-from typing import Callable, Optional
+import ast
+import re
+from typing import Any, Callable, Dict, Optional
 
 from .config import (
     MAX_TOKENS,
     TEMP,
 )
+
+
+VOICEOVER_PATTERN = re.compile(
+    r'self\.voiceover\(\s*(?:text\s*=\s*)?(?P<prefix>[fFbBrRuU]{0,2})(?P<quote>"""|\'\'\'|"|\')(?P<text>.*?)(?P=quote)',
+    re.DOTALL,
+)
+
+
+def extract_voiceover_script(manim_code: str) -> str:
+    """
+    Extract concatenated narration text from self.voiceover(...) calls within the Manim code.
+    Returns a single string combining all detected voiceover snippets in chronological order.
+    """
+    if not manim_code:
+        return ""
+
+    narration_segments = []
+
+    for match in VOICEOVER_PATTERN.finditer(manim_code):
+        prefix = (match.group("prefix") or "").lower()
+        quote = match.group("quote")
+        text = match.group("text")
+
+        # Reconstruct the original literal for safer parsing
+        literal = f"{prefix}{quote}{text}{quote}"
+
+        parsed_text = text
+        # Only attempt literal evaluation when not dealing with f-strings
+        if "f" not in prefix:
+            try:
+                parsed_text = ast.literal_eval(literal)
+            except Exception:
+                parsed_text = text
+
+        # Normalize whitespace and append
+        if isinstance(parsed_text, str):
+            cleaned = " ".join(parsed_text.split())
+            if cleaned:
+                narration_segments.append(cleaned)
+
+    return " ".join(narration_segments)
 
 
 def generate_educational_video_logic(
@@ -373,6 +416,13 @@ def generate_educational_video_logic(
             "job_id": job_id
         })
 
+        # Track spawned render jobs
+        import asyncio
+
+        render_function_calls = []
+
+        section_scripts: Dict[int, str] = {}
+
         async def generate_code_variant_async(section_info, variant_num):
             """Generate a single code variant for a section."""
             i, section = section_info
@@ -465,6 +515,10 @@ Generate a SINGLE scene for this section only. The scene should be self-containe
                 manim_code = clean_manim_code(manim_code)
                 manim_code = apply_all_manual_fixes(manim_code)
                 print(f"✓ [Section {section_num} V{variant_num}] Code cleaned and fixed")
+
+                # Extract voiceover narration script for this section
+                narration_text = extract_voiceover_script(manim_code)
+                section_scripts[section_num] = narration_text
 
                 return (section_num, variant_num, manim_code, None)
 
@@ -712,9 +766,15 @@ Generate the fixed code now:"""
         
         # Build list of section URLs (sections are uploaded to GCS at {job_id}/section_{num}.mp4)
         section_urls = []
+        section_details = []
         for section_num in sorted(successful_sections):
             section_url = f"https://storage.googleapis.com/vid-gen-static/{job_id}/section_{section_num}.mp4"
             section_urls.append(section_url)
+            section_details.append({
+                "section": section_num,
+                "video_url": section_url,
+                "voiceover_script": section_scripts.get(section_num, "")
+            })
 
         print(f"\n✓ Rendering complete: {len(scene_videos)} / {len(video_structure)} sections succeeded")
 
@@ -851,11 +911,19 @@ Generate the fixed code now:"""
             "video_path": str(final_video),
             "job_id": job_id,
             "sections": section_urls,  # List of section video URLs
+            "section_details": section_details,
             "metadata": {
                 "prompt": prompt,
                 "file_size_mb": round(final_size, 2),
                 "note": "Upload disabled - video saved locally",
-                "num_sections": len(section_urls)
+                "num_sections": len(section_urls),
+                "voiceover_scripts": [
+                    {
+                        "section": section_num,
+                        "script": section_scripts.get(section_num, "")
+                    }
+                    for section_num in sorted(section_scripts.keys())
+                ]
             }
         })
 
