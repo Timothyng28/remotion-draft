@@ -45,17 +45,17 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
   
   if (showQuestionInput) {
     return (
-      <div className={`bg-slate-700/50 border border-slate-600 rounded-xl p-4 ${className}`}>
+      <div className={`bg-slate-800 border border-slate-600 rounded-lg p-4 ${className}`}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
-            <label className="text-slate-300 text-sm mb-1 block">
+            <label className="text-slate-300 text-sm mb-2 block font-medium">
               What are you confused about?
             </label>
             <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="e.g., 'How does energy transfer between objects?', 'Why is this important?', 'Can you explain this more deeply?'"
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
+              className="w-full px-3 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
               rows={3}
               autoFocus
             />
@@ -65,21 +65,21 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
             <button
               type="submit"
               disabled={!question.trim()}
-              className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+              className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors font-semibold"
             >
-              Generate Answer Videos
+              Generate Videos
             </button>
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg transition-colors text-sm font-medium"
+              className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg transition-colors font-semibold"
             >
               Cancel
             </button>
           </div>
           
           <p className="text-xs text-slate-400 italic">
-            AI will analyze your question and create 1-5 videos to answer it based on complexity.
+            AI will analyze your question and create 1-5 videos based on complexity.
           </p>
         </form>
       </div>
@@ -90,7 +90,7 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
     <button
       onClick={handleClick}
       disabled={disabled}
-      className={`flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium ${className}`}
+      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-semibold ${className}`}
       title="Ask a question about this topic and get personalized video explanations"
     >
       <svg

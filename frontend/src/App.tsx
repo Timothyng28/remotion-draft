@@ -278,7 +278,7 @@ export const App: React.FC = () => {
   // Learning state - show video flow
   if (appState === "learning" && currentTopic) {
     return (
-      <div className="relative w-full h-full flex items-center justify-center bg-slate-900">
+      <div className="relative w-full h-screen flex bg-slate-900">
         <VideoController
           initialTopic={currentTopic}
           onError={handleVideoError}
@@ -436,49 +436,74 @@ export const App: React.FC = () => {
 
             return (
               <>
-                {/* Home Button */}
-                <button
-                  onClick={handleReset}
-                  className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur-sm hover:bg-slate-700/90 text-white px-3 py-2 rounded-lg transition-all z-50 border border-slate-700 hover:border-slate-600 flex items-center"
-                  title="Return to home"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                    />
-                  </svg>
-                </button>
+                {/* Left Sidebar */}
+                <div className="w-80 h-screen bg-slate-800 border-r border-slate-700 flex flex-col">
+                  {/* Sidebar Header */}
+                  <div className="p-4 border-b border-slate-700">
+                    <button
+                      onClick={handleReset}
+                      className="w-full bg-slate-700/80 hover:bg-slate-700 text-white px-3 py-2 rounded-lg transition-all border border-slate-600 hover:border-slate-500 flex items-center justify-center gap-2"
+                      title="Return to home"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                        />
+                      </svg>
+                      <span>Home</span>
+                    </button>
+                  </div>
 
-                {/* Topic display */}
-                <div className="absolute top-4 left-[72px] bg-slate-800/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm z-50 border border-slate-700 flex items-center">
-                  <div>
-                    <span className="text-slate-400">Learning: </span>
-                    <span className="font-semibold text-blue-400">
+                  {/* Topic Display */}
+                  <div className="px-4 py-3 border-b border-slate-700">
+                    <div className="text-xs text-slate-400 mb-1">Currently Learning</div>
+                    <div className="font-semibold text-blue-400 text-sm">
                       {currentSegment.topic}
-                    </span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Node: {currentNodeNumber}
+                    </div>
+                  </div>
+
+                  {/* Sidebar Content - Input Controls */}
+                  <div className="flex-1 overflow-y-auto">
+                    <InputOverlay
+                      hasQuestion={currentSegment.hasQuestion}
+                      questionText={currentSegment.questionText}
+                      isGenerating={isGenerating}
+                      isEvaluating={false}
+                      onAnswer={() => Promise.resolve()}
+                      onRequestNext={requestNextSegment}
+                      onNewTopic={requestNewTopic}
+                      onReset={handleReset}
+                      onAskQuestion={handleQuestionBranch}
+                      currentNodeNumber={currentNodeNumber}
+                    />
                   </div>
                 </div>
 
-                {/* Tree Visualizer - mini tree preview */}
-                {session.tree.nodes.size > 0 && (
-                  <TreeVisualizer
-                    tree={session.tree}
-                    onExpandClick={() => setShowTreeExplorer(true)}
-                    className="absolute top-4 right-4 z-50"
-                  />
-                )}
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col items-center justify-center relative">
+                  {/* Tree Visualizer - mini tree preview */}
+                  {session.tree.nodes.size > 0 && (
+                    <TreeVisualizer
+                      tree={session.tree}
+                      onExpandClick={() => setShowTreeExplorer(true)}
+                      className="absolute top-4 right-4 z-50"
+                    />
+                  )}
 
-                {/* Video Player Container with Navigation */}
-                <div className="flex items-center gap-4">
+                  {/* Video Player Container with Navigation */}
+                  <div className="flex items-center gap-4 px-4">
                   {/* Previous Button */}
                   <button
                     onClick={() => {
@@ -519,7 +544,7 @@ export const App: React.FC = () => {
                   {/* Video Player */}
                   <div
                     className="relative shadow-2xl rounded-lg overflow-hidden bg-black"
-                    style={{ width: "90vw", maxWidth: "1280px" }}
+                    style={{ width: "calc(100vw - 400px)", maxWidth: "1280px" }}
                   >
                     {currentSegment.videoUrl ? (
                       <video
@@ -629,31 +654,18 @@ export const App: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Input Overlay - shown when segment has a question or when loading next */}
-                <InputOverlay
-                  hasQuestion={currentSegment.hasQuestion}
-                  questionText={currentSegment.questionText}
-                  isGenerating={isGenerating}
-                  isEvaluating={false}
-                  onAnswer={() => Promise.resolve()}
-                  onRequestNext={requestNextSegment}
-                  onNewTopic={requestNewTopic}
-                  onReset={handleReset}
-                  onAskQuestion={handleQuestionBranch}
-                  currentNodeNumber={currentNodeNumber}
-                />
-
-                {/* Tree Explorer Modal */}
-                {showTreeExplorer && (
-                  <TreeExplorer
-                    tree={session.tree}
-                    onNodeClick={(nodeId) => {
-                      navigateToNode(nodeId);
-                      setShowTreeExplorer(false);
-                    }}
-                    onClose={() => setShowTreeExplorer(false)}
-                  />
-                )}
+                  {/* Tree Explorer Modal */}
+                  {showTreeExplorer && (
+                    <TreeExplorer
+                      tree={session.tree}
+                      onNodeClick={(nodeId) => {
+                        navigateToNode(nodeId);
+                        setShowTreeExplorer(false);
+                      }}
+                      onClose={() => setShowTreeExplorer(false)}
+                    />
+                  )}
+                </div>
               </>
             );
           }}

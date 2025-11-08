@@ -61,11 +61,11 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
   // Show loading state
   if (isGenerating || isEvaluating) {
     return (
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-        <div className="bg-slate-800/95 backdrop-blur-md border border-slate-700 rounded-2xl px-8 py-6 shadow-2xl">
+      <div className="p-4">
+        <div className="bg-slate-700/50 border border-slate-600 rounded-xl px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent" />
-            <span className="text-white text-lg">
+            <span className="text-white text-sm">
               {isEvaluating ? 'Evaluating your answer...' : 'Generating next segment...'}
             </span>
           </div>
@@ -77,37 +77,39 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
   // New topic input mode
   if (showNewTopicInput) {
     return (
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-2xl px-4">
-        <div className="bg-slate-800/95 backdrop-blur-md border border-slate-700 rounded-2xl p-6 shadow-2xl">
+      <div className="p-4">
+        <div className="bg-slate-700/50 border border-slate-600 rounded-xl p-5">
           <div className="mb-4">
-            <h3 className="text-white text-lg font-semibold mb-2">
+            <h3 className="text-white text-base font-semibold mb-2">
               What do you want to learn about?
             </h3>
           </div>
           
-          <form onSubmit={handleNewTopicSubmit} className="flex gap-3">
+          <form onSubmit={handleNewTopicSubmit} className="flex flex-col gap-3">
             <input
               type="text"
               value={newTopicValue}
               onChange={(e) => setNewTopicValue(e.target.value)}
               placeholder="Enter a new topic..."
-              className="flex-1 px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               autoFocus
             />
-            <button
-              type="submit"
-              disabled={!newTopicValue.trim()}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
-            >
-              Go
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowNewTopicInput(false)}
-              className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors"
-            >
-              Cancel
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={!newTopicValue.trim()}
+                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                Go
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNewTopicInput(false)}
+                className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -117,32 +119,32 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
   // Question mode - segment has a question
   if (hasQuestion && questionText) {
     return (
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-2xl px-4">
-        <div className="bg-slate-800/95 backdrop-blur-md border border-slate-700 rounded-2xl p-6 shadow-2xl">
+      <div className="p-4">
+        <div className="bg-slate-700/50 border border-slate-600 rounded-xl p-5">
           {/* Question */}
           <div className="mb-4">
-            <h3 className="text-blue-400 text-sm font-semibold uppercase tracking-wide mb-2">
+            <h3 className="text-blue-400 text-xs font-semibold uppercase tracking-wide mb-2">
               Question
             </h3>
-            <p className="text-white text-lg">
+            <p className="text-white text-sm">
               {questionText}
             </p>
           </div>
 
           {/* Input Form */}
-          <form onSubmit={handleSubmit} className="flex gap-3">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your answer..."
-              className="flex-1 px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isEvaluating}
             />
             <button
               type="submit"
               disabled={!input.trim() || isEvaluating}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
+              className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
             >
               Submit
             </button>
@@ -156,23 +158,12 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
               disabled={isEvaluating || isGenerating}
             />
             
-            <div className="flex gap-2 text-sm">
-              <span className="text-slate-500">At node {currentNodeNumber}</span>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setShowNewTopicInput(true)}
-                className="text-slate-400 hover:text-white transition-colors"
-              >
-                Switch Topic
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={onReset}
-                className="text-slate-400 hover:text-white transition-colors"
-              >
-                Start Over
-              </button>
-            </div>
+            <button
+              onClick={() => setShowNewTopicInput(true)}
+              className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              Switch Topic
+            </button>
           </div>
         </div>
       </div>
@@ -181,47 +172,21 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
 
   // No question mode - show continue/new topic options
   return (
-    <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-3xl px-4">
-      <div className="bg-slate-800/95 backdrop-blur-md border border-slate-700 rounded-2xl p-6 shadow-2xl">
-        <div className="flex flex-col gap-4">
-          {/* Main actions */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onRequestNext}
-              disabled={isGenerating}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors flex items-center gap-2"
-            >
-              <span>Continue Learning</span>
-              <span>→</span>
-            </button>
-            
-            <div className="h-8 w-px bg-slate-600" />
-            
-            <button
-              onClick={() => setShowNewTopicInput(true)}
-              className="px-4 py-2 text-slate-300 hover:text-white transition-colors"
-            >
-              New Topic
-            </button>
-            
-            <button
-              onClick={onReset}
-              className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-            >
-              Start Over
-            </button>
-          </div>
-          
+    <div className="p-4">
+      <div className="bg-slate-700/50 border border-slate-600 rounded-xl p-5">
+        <div className="flex flex-col gap-3">
           {/* Branch Button */}
           <BranchButton
             onAskQuestion={onAskQuestion}
             disabled={isGenerating}
           />
           
-          {/* Node info */}
-          <div className="text-xs text-slate-500 text-center">
-            Currently at node: {currentNodeNumber}
-          </div>
+          <button
+            onClick={() => setShowNewTopicInput(true)}
+            className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            New Topic
+          </button>
         </div>
       </div>
     </div>

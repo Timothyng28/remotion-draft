@@ -223,10 +223,8 @@ export const VideoController: React.FC<VideoControllerProps> = ({
             id: `segment_${sectionNum}`,
             manimCode: '',
             duration: 90,
-            hasQuestion: index < result.sections!.length - 1,
-            questionText: index < result.sections!.length - 1 
-              ? 'What did you learn from this section?' 
-              : undefined,
+            hasQuestion: false,
+            questionText: undefined,
             topic: topic,
             difficulty: 'medium',
             generatedAt: new Date().toISOString(),
@@ -435,10 +433,8 @@ export const VideoController: React.FC<VideoControllerProps> = ({
               id: `segment_${Date.now()}_${sectionNum}`,
               manimCode: '',
               duration: 90,
-              hasQuestion: index < result.sections!.length - 1,
-              questionText: index < result.sections!.length - 1 
-                ? 'What did you learn from this section?' 
-                : undefined,
+              hasQuestion: false,
+              questionText: undefined,
               topic: newTopic,
               difficulty: 'medium',
               generatedAt: new Date().toISOString(),
