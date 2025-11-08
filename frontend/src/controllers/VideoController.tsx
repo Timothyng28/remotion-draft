@@ -27,7 +27,7 @@ import {
 import {
   evaluateAnswer,
 } from '../services/llmService';
-import { generateVideoScenes, GenerationProgress } from '../services/videoRenderService';
+import { generateVideoScenes, GenerationProgress, SectionDetail } from '../services/videoRenderService';
 import { analyzeQuestion } from '../services/questionAnalysisService';
 
 /**
@@ -196,10 +196,28 @@ export const VideoController: React.FC<VideoControllerProps> = ({
       });
       
       if (result.success && result.sections && result.sections.length > 0) {
-        // Create segments
+        const detailByUrl = new Map<string, SectionDetail>();
+        result.sectionDetails?.forEach((detail) => {
+          if (detail?.video_url) {
+            detailByUrl.set(detail.video_url, detail);
+          }
+        });
+
+        const scriptBySection = new Map<number, string>();
+        result.voiceoverScripts?.forEach((item) => {
+          if (typeof item?.section === 'number' && item.script) {
+            scriptBySection.set(item.section, item.script);
+          }
+        });
+
+        // Map section URLs to VideoSegments
         const segments: VideoSegment[] = result.sections.map((sectionUrl, index) => {
           const sectionMatch = sectionUrl.match(/section_(\d+)\.mp4/);
-          const sectionNum = sectionMatch ? parseInt(sectionMatch[1], 10) : index + 1;
+          const detail = detailByUrl.get(sectionUrl);
+          const sectionNum = detail?.section ?? (sectionMatch ? parseInt(sectionMatch[1], 10) : index + 1);
+          const voiceoverScript =
+            (detail?.voiceover_script || '').trim() ||
+            (sectionNum !== undefined ? (scriptBySection.get(sectionNum) || '').trim() : '');
           
           return {
             id: `segment_${sectionNum}`,
@@ -213,7 +231,8 @@ export const VideoController: React.FC<VideoControllerProps> = ({
             difficulty: 'medium',
             generatedAt: new Date().toISOString(),
             videoUrl: sectionUrl,
-            renderingStatus: 'completed',
+            renderingStatus: 'completed', // Already rendered
+            voiceoverScript: voiceoverScript || undefined,
           };
         });
         
@@ -299,11 +318,24 @@ export const VideoController: React.FC<VideoControllerProps> = ({
           correctnessPattern: newPattern,
         });
         
-        setSession((prev) => ({
-          ...prev,
-          context: updatedContext,
-          lastUpdatedAt: new Date().toISOString(),
-        }));
+        setSession((prev) => {
+          const updatedSegments = prev.segments.map((segment, idx) => {
+            if (idx === prev.currentIndex) {
+              return {
+                ...segment,
+                userAnswer: answer,
+              };
+            }
+            return segment;
+          });
+
+          return {
+            ...prev,
+            segments: updatedSegments,
+            context: updatedContext,
+            lastUpdatedAt: new Date().toISOString(),
+          };
+        });
         
         setIsEvaluating(false);
         
@@ -376,10 +408,28 @@ export const VideoController: React.FC<VideoControllerProps> = ({
         });
         
         if (result.success && result.sections && result.sections.length > 0) {
-          // Create segments
+          const detailByUrl = new Map<string, SectionDetail>();
+          result.sectionDetails?.forEach((detail) => {
+            if (detail?.video_url) {
+              detailByUrl.set(detail.video_url, detail);
+            }
+          });
+
+          const scriptBySection = new Map<number, string>();
+          result.voiceoverScripts?.forEach((item) => {
+            if (typeof item?.section === 'number' && item.script) {
+              scriptBySection.set(item.section, item.script);
+            }
+          });
+
+          // Map section URLs to VideoSegments
           const newSegments: VideoSegment[] = result.sections.map((sectionUrl, index) => {
             const sectionMatch = sectionUrl.match(/section_(\d+)\.mp4/);
-            const sectionNum = sectionMatch ? parseInt(sectionMatch[1], 10) : index + 1;
+            const detail = detailByUrl.get(sectionUrl);
+            const sectionNum = detail?.section ?? (sectionMatch ? parseInt(sectionMatch[1], 10) : index + 1);
+            const voiceoverScript =
+              (detail?.voiceover_script || '').trim() ||
+              (sectionNum !== undefined ? (scriptBySection.get(sectionNum) || '').trim() : '');
             
             return {
               id: `segment_${Date.now()}_${sectionNum}`,
@@ -394,6 +444,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
               generatedAt: new Date().toISOString(),
               videoUrl: sectionUrl,
               renderingStatus: 'completed',
+              voiceoverScript: voiceoverScript || undefined,
             };
           });
           

@@ -7,6 +7,17 @@
 
 import { VideoSegment } from "../types/VideoConfig";
 
+export interface SectionVoiceover {
+  section: number;
+  script: string;
+}
+
+export interface SectionDetail {
+  section: number;
+  video_url: string;
+  voiceover_script?: string;
+}
+
 /**
  * Progress update from the backend
  */
@@ -18,10 +29,12 @@ export interface GenerationProgress {
   message?: string;
   job_id?: string;
   sections?: string[]; // List of section video URLs (only in completion)
+  section_details?: SectionDetail[];
   error?: string;
   metadata?: {
     prompt?: string;
     num_sections?: number;
+    voiceover_scripts?: SectionVoiceover[];
   };
 }
 
@@ -35,6 +48,8 @@ export async function generateVideoScenes(
 ): Promise<{
   success: boolean;
   sections?: string[];
+  sectionDetails?: SectionDetail[];
+  voiceoverScripts?: SectionVoiceover[];
   error?: string;
   jobId?: string;
 }> {
@@ -78,6 +93,8 @@ export async function generateVideoScenes(
     let jobId: string | undefined;
     let finalStatus: "processing" | "completed" | "failed" = "processing";
     let finalError: string | undefined;
+    let finalSectionDetails: SectionDetail[] | undefined;
+    let finalVoiceoverScripts: SectionVoiceover[] | undefined;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -110,6 +127,14 @@ export async function generateVideoScenes(
               finalError = data.error || "Generation failed";
             }
 
+            if (data.section_details) {
+              finalSectionDetails = data.section_details;
+            }
+
+            if (data.metadata?.voiceover_scripts) {
+              finalVoiceoverScripts = data.metadata.voiceover_scripts;
+            }
+
             // Call progress callback
             onProgress?.(data);
           } catch (parseError) {
@@ -129,6 +154,12 @@ export async function generateVideoScenes(
             finalSections = data.sections;
             finalStatus = "completed";
           }
+          if (data.section_details) {
+            finalSectionDetails = data.section_details;
+          }
+          if (data.metadata?.voiceover_scripts) {
+            finalVoiceoverScripts = data.metadata.voiceover_scripts;
+          }
           onProgress?.(data);
         } catch (parseError) {
           console.warn("Failed to parse final SSE data:", parseError);
@@ -140,6 +171,8 @@ export async function generateVideoScenes(
       return {
         success: true,
         sections: finalSections,
+        sectionDetails: finalSectionDetails,
+        voiceoverScripts: finalVoiceoverScripts,
         jobId,
       };
     } else if (finalStatus === "failed") {

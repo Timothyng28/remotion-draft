@@ -7,20 +7,23 @@
  * 2. Video Flow - Continuous video segments with VideoController
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ErrorDisplay } from "./components/ErrorDisplay";
 import { InputOverlay } from "./components/InputOverlay";
 import { LandingPage } from "./components/LandingPage";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { TreeExplorer } from "./components/TreeExplorer";
 import { TreeVisualizer } from "./components/TreeVisualizer";
+import { ClosingQuestionOverlay } from "./components/ClosingQuestionOverlay";
 import { VideoController } from "./controllers/VideoController";
 import { getNextNode, getPreviousNode } from "./types/TreeState";
+import { generateClosingQuestion } from "./services/llmService";
+import { ClosingQuestionPayload, VideoSession } from "./types/VideoConfig";
 
 /**
  * App state types
  */
-type AppState = "landing" | "learning" | "error";
+type AppState = "landing" | "learning" | "error" | "closing";
 
 /**
  * Main App Component
@@ -33,10 +36,25 @@ export const App: React.FC = () => {
 
   // Reference to the video element for programmatic control
   const videoRef = useRef<HTMLVideoElement>(null);
-
+  const closingPayloadRef = useRef<ClosingQuestionPayload | null>(null);
+  
   // Track when segment changes to restart playback
   const [segmentKey, setSegmentKey] = useState(0);
+  
+  // Closing question state
+  const [closingQuestion, setClosingQuestion] = useState<string | null>(null);
+  const [closingQuestionStatus, setClosingQuestionStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [closingQuestionError, setClosingQuestionError] = useState<string>('');
+  const [closingQuestionAnswer, setClosingQuestionAnswer] = useState<string>('');
 
+  const resetClosingQuestionState = useCallback(() => {
+    setClosingQuestion(null);
+    setClosingQuestionStatus('idle');
+    setClosingQuestionError('');
+    setClosingQuestionAnswer('');
+    closingPayloadRef.current = null;
+  }, []);
+  
   // ===== TEST MODE - EASILY REMOVABLE =====
   const [isTestMode, setIsTestMode] = useState(false);
   // ===== END TEST MODE =====
@@ -51,6 +69,7 @@ export const App: React.FC = () => {
    * Handle topic submission from landing page
    */
   const handleTopicSubmit = async (topic: string) => {
+    resetClosingQuestionState();
     setCurrentTopic(topic);
     setIsTestMode(false); // Normal mode
     setAppState("learning");
@@ -62,6 +81,7 @@ export const App: React.FC = () => {
    * Handle test mode activation with hardcoded data
    */
   const handleTestMode = () => {
+    resetClosingQuestionState();
     setCurrentTopic("Test Topic: Understanding Machine Learning");
     setIsTestMode(true);
     setAppState("learning");
@@ -81,6 +101,7 @@ export const App: React.FC = () => {
    * Handle retry after error
    */
   const handleRetry = () => {
+    resetClosingQuestionState();
     if (currentTopic) {
       setAppState("learning");
       setError("");
@@ -93,11 +114,96 @@ export const App: React.FC = () => {
    * Return to landing page
    */
   const handleReset = () => {
+    resetClosingQuestionState();
     setAppState("landing");
     setCurrentTopic("");
     setError("");
     setIsTestMode(false); // Reset test mode
   };
+
+  const executeClosingQuestionRequest = useCallback(async (payload: ClosingQuestionPayload) => {
+    setClosingQuestionStatus('loading');
+    setClosingQuestion(null);
+    setClosingQuestionError('');
+
+    try {
+      console.log('Requesting closing question with payload:', payload);
+      const response = await generateClosingQuestion(payload);
+      console.log('Closing question response:', response);
+      if (response.success && response.question) {
+        setClosingQuestion(response.question);
+        setClosingQuestionStatus('ready');
+      } else {
+        setClosingQuestionStatus('error');
+        setClosingQuestionError(response.error || 'Unable to generate closing question');
+      }
+    } catch (err) {
+      console.error('Closing question error:', err);
+      setClosingQuestionStatus('error');
+      setClosingQuestionError(
+        err instanceof Error ? err.message : 'Unknown error occurred while generating the closing question'
+      );
+    }
+  }, []);
+
+  const requestClosingQuestion = useCallback((sessionSnapshot: VideoSession) => {
+    const topic =
+      sessionSnapshot.context.initialTopic ||
+      currentTopic ||
+      'your lesson';
+
+    const voiceoverSections = sessionSnapshot.segments
+      .map((segment, index) => {
+        const script = segment.voiceoverScript?.trim();
+        if (!script) {
+          return null;
+        }
+        return {
+          section: index + 1,
+          script,
+        };
+      })
+      .filter((item): item is ClosingQuestionPayload['voiceoverSections'][number] => item !== null);
+
+    const userResponses = sessionSnapshot.segments
+      .map((segment, index) => {
+        if (!segment.userAnswer) {
+          return null;
+        }
+
+        const prompt =
+          (segment.questionText && segment.questionText.trim()) ||
+          `What resonated with you in segment ${index + 1}?`;
+
+        return {
+          prompt,
+          answer: segment.userAnswer,
+        };
+      })
+      .filter((item): item is ClosingQuestionPayload['userResponses'][number] => item !== null);
+
+    const summary =
+      sessionSnapshot.context.historyTopics && sessionSnapshot.context.historyTopics.length > 0
+        ? sessionSnapshot.context.historyTopics.join(' → ')
+        : undefined;
+
+    const payload: ClosingQuestionPayload = {
+      topic,
+      voiceoverSections,
+      userResponses,
+      summary,
+    };
+
+    closingPayloadRef.current = payload;
+    setAppState('closing');
+    void executeClosingQuestionRequest(payload);
+  }, [currentTopic, executeClosingQuestionRequest]);
+
+  const handleRetryClosingQuestion = useCallback(() => {
+    if (closingPayloadRef.current) {
+      void executeClosingQuestionRequest(closingPayloadRef.current);
+    }
+  }, [executeClosingQuestionRequest]);
 
   // Render based on app state
   if (appState === "landing") {
@@ -113,6 +219,28 @@ export const App: React.FC = () => {
     return <ErrorDisplay error={error} onRetry={handleRetry} />;
   }
 
+  // Closing question state - show lightweight overlay
+  if (appState === 'closing') {
+    return (
+      <div className="relative flex min-h-screen w-full items-center justify-center bg-slate-950">
+        <ClosingQuestionOverlay
+          isOpen
+          topic={currentTopic || closingPayloadRef.current?.topic || 'Your lesson'}
+          question={closingQuestion || undefined}
+          answer={closingQuestionAnswer}
+          onAnswerChange={(newAnswer) => {
+            setClosingQuestionAnswer(newAnswer);
+            console.log('Closing question answer:', newAnswer);
+          }}
+          isLoading={closingQuestionStatus === 'loading'}
+          error={closingQuestionStatus === 'error' ? closingQuestionError : undefined}
+          onRestart={handleReset}
+          onRetry={closingQuestionStatus === 'error' ? handleRetryClosingQuestion : undefined}
+        />
+      </div>
+    );
+  }
+  
   // Learning state - show video flow
   if (appState === "learning" && currentTopic) {
     return (
@@ -127,14 +255,16 @@ export const App: React.FC = () => {
             currentSegment,
             currentNodeNumber,
             isGenerating,
-            isEvaluating,
             error: videoError,
-            handleAnswer,
             requestNextSegment,
             requestNewTopic,
             navigateToNode,
             handleQuestionBranch,
+            goToSegment,
           }) => {
+            const isLastSegment =
+              session.currentIndex === session.segments.length - 1;
+
             // Debug info in console
             console.log("VideoController State:", {
               treeSize: session.tree.nodes.size,
@@ -144,8 +274,27 @@ export const App: React.FC = () => {
               isGenerating,
               videoError,
               context: session.context,
+              isLastSegment,
             });
 
+            const handleVideoEnd = useCallback(() => {
+              if (!currentSegment || isGenerating) {
+                return;
+              }
+
+              if (isLastSegment) {
+                requestClosingQuestion(session);
+              } else if (isAutoPlayEnabled) {
+                const nextNode = getNextNode(
+                  session.tree,
+                  session.tree.currentNodeId
+                );
+                if (nextNode) {
+                  navigateToNode(nextNode.id);
+                }
+              }
+            }, [currentSegment, isGenerating, isLastSegment, requestClosingQuestion, session, isAutoPlayEnabled, navigateToNode]);
+            
             // IMPORTANT: Call all hooks BEFORE any conditional returns
             // Effect to restart video when segment changes
             useEffect(() => {
@@ -159,51 +308,16 @@ export const App: React.FC = () => {
                 videoRef.current.play().catch(console.error);
               }
             }, [currentSegment?.id, currentSegment?.videoUrl]);
-
-            // Check if video has ended and should auto-advance
+            
+            // Check if video has ended and should auto-advance or trigger reflection
             useEffect(() => {
               if (!videoRef.current) return;
-
-              const handleVideoEnd = () => {
-                console.log("Video ended");
-                console.log("Auto-play conditions:", {
-                  isAutoPlayEnabled,
-                  hasCurrentSegment: !!currentSegment,
-                  hasQuestion: currentSegment?.hasQuestion,
-                  isGenerating,
-                });
-
-                console.log(isAutoPlayEnabled, currentSegment, !isGenerating);
-                if (isAutoPlayEnabled && currentSegment && !isGenerating) {
-                  console.log("Navigating to next node");
-                  const nextNode = getNextNode(
-                    session.tree,
-                    session.tree.currentNodeId
-                  );
-                  console.log("Next node:", nextNode?.id);
-                  if (nextNode) {
-                    console.log("Navigating to node:", nextNode.id);
-                    navigateToNode(nextNode.id);
-                  } else {
-                    console.log("No next node found");
-                  }
-                } else {
-                  console.log("Auto-play conditions not met");
-                }
-              };
-
-              videoRef.current.addEventListener("ended", handleVideoEnd);
+              
+              videoRef.current.addEventListener('ended', handleVideoEnd);
               return () => {
                 videoRef.current?.removeEventListener("ended", handleVideoEnd);
               };
-            }, [
-              segmentKey,
-              currentSegment,
-              isGenerating,
-              navigateToNode,
-              isAutoPlayEnabled,
-              session.tree,
-            ]);
+            }, [handleVideoEnd]);
 
             // Preload next 2 videos for smooth playback
             useEffect(() => {
@@ -241,6 +355,7 @@ export const App: React.FC = () => {
                 });
               };
             }, [session.tree, session.tree.currentNodeId]);
+
 
             // NOW we can do conditional returns
 
@@ -462,8 +577,8 @@ export const App: React.FC = () => {
                   hasQuestion={currentSegment.hasQuestion}
                   questionText={currentSegment.questionText}
                   isGenerating={isGenerating}
-                  isEvaluating={isEvaluating}
-                  onAnswer={handleAnswer}
+                  isEvaluating={false}
+                  onAnswer={() => Promise.resolve()}
                   onRequestNext={requestNextSegment}
                   onNewTopic={requestNewTopic}
                   onReset={handleReset}

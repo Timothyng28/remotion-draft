@@ -23,6 +23,18 @@ This app creates an interactive learning experience where:
 npm install
 ```
 
+### Environment Setup
+
+Create a `.env` file in the `frontend/` directory:
+
+```bash
+# Anthropic API Key for Claude (for closing question generation)
+# Get your key from: https://console.anthropic.com/settings/keys
+VITE_ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
+
+**Note**: The `VITE_` prefix is required for Vite to expose the variable to the browser.
+
 ### Development
 
 ```bash

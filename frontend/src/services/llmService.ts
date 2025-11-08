@@ -12,6 +12,11 @@ import {
   LearningContext,
   GenerateSegmentResponse,
   EvaluateAnswerResponse,
+  VideoSession,
+  ReflectionQuestion,
+  GenerateReflectionQuestionsResponse,
+  ClosingQuestionPayload,
+  GenerateClosingQuestionResponse,
 } from '../types/VideoConfig';
 
 /**
@@ -525,4 +530,267 @@ export function loadConfigFromLocalStorage(): any | null {
     console.error('Failed to load config from localStorage:', error);
   }
   return null;
+}
+
+/**
+ * Generate reflection questions based on the completed lesson
+ * Calls Modal backend which uses ANTHROPIC_API_KEY
+ */
+export async function generateReflectionQuestions(
+  session: VideoSession
+): Promise<GenerateReflectionQuestionsResponse> {
+  const modalEndpoint =
+    "https://evan-zhangmingjun--main-video-generator-dev-generate-reflection-questions.modal.run";
+  
+  try {
+    // Build session summary to send to backend
+    const sessionSummary = {
+      topic: session.context.initialTopic || 'Unknown topic',
+      segments: session.segments.map(seg => ({
+        topic: seg.topic,
+        hasQuestion: seg.hasQuestion,
+        questionText: seg.questionText,
+      })),
+      depth: session.context.depth,
+      historyTopics: session.context.historyTopics,
+    };
+    
+    const response = await fetch(modalEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(sessionSummary),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      return {
+        success: false,
+        error: `Backend request failed: ${response.status} ${response.statusText}. ${errorText}`,
+      };
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      return {
+        success: false,
+        error: data.error || 'Backend returned failure',
+      };
+    }
+    
+    // Validate and extract questions
+    const rawQuestions: any[] = Array.isArray(data?.questions)
+      ? data.questions
+      : [];
+
+    const questions: ReflectionQuestion[] = rawQuestions
+      .map((item, index) => {
+        const promptText =
+          typeof item?.prompt === 'string' ? item.prompt.trim() : '';
+        if (!promptText) {
+          return null;
+        }
+        const question: ReflectionQuestion = {
+          id:
+            typeof item?.id === 'string' && item.id.trim()
+              ? item.id.trim()
+              : `reflection-${index + 1}`,
+          prompt: promptText,
+        };
+        if (typeof item?.placeholder === 'string' && item.placeholder.trim()) {
+          question.placeholder = item.placeholder.trim();
+        }
+        return question;
+      })
+      .filter((item): item is ReflectionQuestion => item !== null);
+
+    if (!questions.length) {
+      return {
+        success: false,
+        error: 'No reflection questions returned from backend',
+      };
+    }
+    
+    return {
+      success: true,
+      questions,
+    };
+  } catch (error) {
+    console.error('Reflection questions generation error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
+}
+
+/**
+ * Generate a single closing question based on narration and learner interaction.
+ * Calls Claude API directly from the frontend.
+ */
+export async function generateClosingQuestion(
+  payload: ClosingQuestionPayload
+): Promise<GenerateClosingQuestionResponse> {
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
+  if (!apiKey) {
+    console.error('VITE_ANTHROPIC_API_KEY not configured');
+    return {
+      success: false,
+      error: 'API key not configured. Please add VITE_ANTHROPIC_API_KEY to your .env file.',
+    };
+  }
+
+  try {
+    // Build the prompt
+    const prompt = buildClosingQuestionPrompt(payload);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 512,
+        temperature: 0.6,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Claude API request failed:', response.status, errorData);
+      return {
+        success: false,
+        error: `Claude API request failed: ${response.status} ${response.statusText}. ${errorData.error?.message || ''}`,
+      };
+    }
+
+    const data = await response.json();
+    const textContent = data.content?.[0]?.text;
+
+    if (!textContent) {
+      console.error('No text content in response:', data);
+      return {
+        success: false,
+        error: 'No content received from Claude API',
+      };
+    }
+
+    // Parse the JSON response
+    const cleanedJSON = cleanJSONResponse(textContent);
+    let parsedData: any;
+
+    try {
+      parsedData = JSON.parse(cleanedJSON);
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      console.error('Received text:', textContent);
+      return {
+        success: false,
+        error: 'Failed to parse closing question JSON from API response',
+      };
+    }
+
+    const question = parsedData.closing_question || parsedData.question;
+
+    if (typeof question === 'string' && question.trim()) {
+      return {
+        success: true,
+        question: question.trim(),
+      };
+    }
+
+    return {
+      success: false,
+      error: 'No closing question found in API response',
+    };
+  } catch (error) {
+    console.error('Closing question generation error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Unknown error occurred during closing question generation',
+    };
+  }
+}
+
+/**
+ * Build the prompt for generating a closing question
+ */
+function buildClosingQuestionPrompt(payload: ClosingQuestionPayload): string {
+  const { topic, voiceoverSections, userResponses, summary } = payload;
+
+  // Build narration summary
+  const narrationLines = voiceoverSections
+    .map((entry) => {
+      const truncated = entry.script.trim();
+      if (truncated) {
+        return `Section ${entry.section}: ${truncated}`;
+      }
+      return null;
+    })
+    .filter((line): line is string => line !== null);
+
+  const narrationSummary = narrationLines.length > 0 ? narrationLines.join('\n') : 'N/A';
+
+  // Build learner responses summary
+  const learnerLines = userResponses
+    .map((entry) => {
+      if (entry.answer) {
+        return `${entry.prompt}: ${entry.answer}`;
+      }
+      return null;
+    })
+    .filter((line): line is string => line !== null);
+
+  const learnerSummary =
+    learnerLines.length > 0 ? learnerLines.join('\n') : 'No learner responses recorded.';
+
+  return `You are an expert instructional designer crafting a final knowledge check question for a short educational video.
+
+LESSON TOPIC:
+${topic}
+
+NARRATION SCRIPT (what was explained):
+${narrationSummary}
+
+LEARNER RESPONSES (how they engaged):
+${learnerSummary}
+
+${summary ? `SESSION SUMMARY:\n${summary}\n` : ''}
+
+Your task is to generate ONE concrete, content-focused question that:
+1. Tests a specific concept, definition, or fact from the lesson (e.g., "What is the time complexity for search in a BST?")
+2. Has a clear, factual answer based on the material covered
+3. Avoids broad reflection - focus on concrete knowledge
+4. Can be answered in 1-3 sentences
+5. Is direct and clear (one sentence, max 15 words)
+
+GOOD EXAMPLES:
+- "What is the time complexity for search in a binary search tree?"
+- "What property must a binary search tree maintain?"
+- "How does insertion work in a balanced BST?"
+
+BAD EXAMPLES (too reflective/broad):
+- "How might binary search trees optimize data retrieval in applications you use daily?"
+- "What resonated with you about this lesson?"
+
+RESPONSE FORMAT (JSON only, no markdown):
+{
+  "closing_question": "Your specific, testable question here?"
+}
+
+Generate the closing question now:`;
 }
