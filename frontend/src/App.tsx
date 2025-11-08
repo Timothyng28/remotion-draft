@@ -129,7 +129,7 @@ export const App: React.FC = () => {
             requestNextSegment,
             requestNewTopic,
             navigateToNode,
-            createBranch,
+            handleQuestionBranch,
           }) => {
             // Debug info in console
             console.log('VideoController State:', {
@@ -270,7 +270,7 @@ export const App: React.FC = () => {
                   onRequestNext={requestNextSegment}
                   onNewTopic={requestNewTopic}
                   onReset={handleReset}
-                  onCreateBranch={createBranch}
+                  onAskQuestion={handleQuestionBranch}
                   currentNodeNumber={currentNodeNumber}
                 />
                 
