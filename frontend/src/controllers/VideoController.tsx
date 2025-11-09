@@ -221,6 +221,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
   
   // Track in-progress questions to prevent duplicates
   const processingQuestionsRef = useRef<Set<string>>(new Set());
+  const initialGenerationTriggeredRef = useRef(false);
   
   // Get current segment from tree
   const currentNode = getCurrentNode(session.tree);
@@ -269,22 +270,20 @@ export const VideoController: React.FC<VideoControllerProps> = ({
    * Generate the first segment when component mounts
    */
   useEffect(() => {
-    // ===== TEST MODE - EASILY REMOVABLE =====
-    // Skip generation in test mode (test data already loaded)
-    if (isTestMode) {
-      console.log('Test mode active - using hardcoded video data');
+    if (initialGenerationTriggeredRef.current) {
       return;
     }
-    // ===== END TEST MODE =====
-    
-    // Skip generation if session already has nodes (loaded from cache)
+
+    initialGenerationTriggeredRef.current = true;
+
+    const currentNode = session.tree.nodes.size > 0 ? getCurrentNode(session.tree) : null;
+
     if (initialSession && session.tree.nodes.size > 0) {
       console.log('Using cached session - skipping initial generation');
       return;
     }
-    
-    // Check if tree is empty (no root node)
-    if (session.tree.nodes.size === 0 && !isGenerating) {
+
+    if (!currentNode && !isGenerating) {
       console.log('Generating initial segment for topic:', session.context.initialTopic);
       generateInitialSegment();
     }
