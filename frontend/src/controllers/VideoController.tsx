@@ -35,6 +35,7 @@ import {
 import { generateVideoScenes, GenerationProgress, SectionDetail } from '../services/videoRenderService';
 import { analyzeQuestion } from '../services/questionAnalysisService';
 import { generateQuizQuestion, evaluateQuizAnswer } from '../services/quizService';
+import { generateNodeDescription, embedText } from '../services/searchService';
 
 /**
  * Generation request for parallel processing
@@ -172,6 +173,45 @@ function createTestSession(topic: string): VideoSession {
   };
 }
 // ===== END TEST DATA =====
+
+/**
+ * Helper function to enrich a segment with description and embedding
+ * for semantic search. Runs asynchronously in the background.
+ */
+async function enrichSegmentWithSearchMetadata(segment: VideoSegment): Promise<void> {
+  try {
+    // Generate description if not already present
+    if (!segment.description && (segment.title || segment.topic || segment.voiceoverScript)) {
+      console.log(`Generating description for segment: ${segment.title || segment.topic}`);
+      const descResult = await generateNodeDescription(segment);
+      
+      if (descResult.success && descResult.description) {
+        segment.description = descResult.description;
+        console.log(`✓ Description generated: ${segment.description?.substring(0, 50)}...`);
+      } else {
+        // Fallback description
+        segment.description = segment.title || segment.topic;
+        console.log(`✓ Using fallback description: ${segment.description}`);
+      }
+    }
+    
+    // Generate embedding if not already present
+    if (!segment.embedding && segment.description) {
+      console.log(`Generating embedding for segment description`);
+      const embedResult = await embedText(segment.description);
+      
+      if (embedResult.success && embedResult.embedding) {
+        segment.embedding = embedResult.embedding;
+        console.log(`✓ Embedding generated (${embedResult.embedding.length} dimensions)`);
+      } else {
+        console.warn(`Failed to generate embedding: ${embedResult.error}`);
+      }
+    }
+  } catch (error) {
+    // Don't throw - just log the error and continue
+    console.error('Error enriching segment with search metadata:', error);
+  }
+}
 
 /**
  * VideoController Component
@@ -545,7 +585,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
               (detail?.voiceover_script || '').trim() ||
               (sectionNum !== undefined ? (scriptBySection.get(sectionNum) || '').trim() : '');
             
-            return {
+            const segment: VideoSegment = {
               id: `segment_${Date.now()}_${sectionNum}`,
               manimCode: '',
               duration: 90,
@@ -560,6 +600,11 @@ export const VideoController: React.FC<VideoControllerProps> = ({
               renderingStatus: 'completed',
               voiceoverScript: voiceoverScript || undefined,
             };
+            
+            // Enrich with description and embedding (async, non-blocking)
+            enrichSegmentWithSearchMetadata(segment).catch(console.error);
+            
+            return segment;
           });
           
           // Create new independent root tree
@@ -731,6 +776,9 @@ export const VideoController: React.FC<VideoControllerProps> = ({
             renderingStatus: 'completed',
             voiceoverScript: detail?.voiceover_script,
           };
+          
+          // Enrich with description and embedding (async, non-blocking)
+          enrichSegmentWithSearchMetadata(newSegment).catch(console.error);
           
           // Store segment with its corresponding phase info to avoid index mismatch
           generatedItems.push({ segment: newSegment, phase, phaseIndex: i });

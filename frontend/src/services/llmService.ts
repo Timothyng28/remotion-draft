@@ -877,6 +877,25 @@ Context: ${branchContext}`;
         isQuestionNode: false,
       };
       
+      // Enrich with description and embedding for search (async, non-blocking)
+      import('../services/searchService').then(({ generateNodeDescription, embedText }) => {
+        (async () => {
+          try {
+            const descResult = await generateNodeDescription(segment);
+            if (descResult.success && descResult.description) {
+              segment.description = descResult.description;
+              
+              const embedResult = await embedText(descResult.description);
+              if (embedResult.success && embedResult.embedding) {
+                segment.embedding = embedResult.embedding;
+              }
+            }
+          } catch (error) {
+            console.error('Error enriching remediation segment:', error);
+          }
+        })();
+      }).catch(console.error);
+      
       return {
         success: true,
         videoUrl,

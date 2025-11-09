@@ -27,6 +27,7 @@ import {
   getPathFromRoot,
 } from "../types/TreeState";
 import { LearningTree } from "../types/VideoConfig";
+import { SearchResult, searchNodes } from "../services/searchService";
 import "./TreeAnimations.css";
 
 interface TreeExplorerProps {
@@ -288,6 +289,13 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
 }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
 
   // Build full tree visualization
   useEffect(() => {
@@ -318,6 +326,9 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
       // Check if this is a question node
       const isQuestionNode = treeNode.segment.isQuestionNode || false;
       
+      // Check if this node is highlighted from search
+      const isHighlighted = highlightedNodeIds.has(treeNode.id);
+      
       // Color logic: Question nodes are always yellow, current nodes are blue, others use branch colors
       const colorIndex = treeNode.branchIndex % nodeColors.length;
       let nodeColor = nodeColors[colorIndex];
@@ -325,6 +336,8 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
         nodeColor = '#fbbf24'; // Yellow for question nodes (always)
       } else if (isCurrent) {
         nodeColor = '#3b82f6'; // Blue for current video nodes
+      } else if (isHighlighted) {
+        nodeColor = '#10b981'; // Green for search results
       }
 
       // Determine if this node has a thumbnail
@@ -342,7 +355,7 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
           nodeColor: nodeColor,
           borderColor: isQuestionNode 
             ? '#f59e0b' 
-            : (isCurrent ? '#60a5fa' : nodeColor),
+            : (isCurrent ? '#60a5fa' : (isHighlighted ? '#10b981' : nodeColor)),
           isCurrent: isCurrent,
           isQuestionNode: isQuestionNode,
         },
@@ -354,7 +367,9 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
           color: "#fff",
           border: isQuestionNode && !hasThumbnail
             ? '3px solid #f59e0b'
-            : (isCurrent && !hasThumbnail ? "3px solid #60a5fa" : "none"),
+            : (isCurrent && !hasThumbnail 
+              ? "3px solid #60a5fa" 
+              : (isHighlighted && !hasThumbnail ? "3px solid #10b981" : "none")),
           borderRadius: hasThumbnail ? "0" : "50%",
           padding: "0",
           width: hasThumbnail ? "auto" : "40px",
@@ -366,12 +381,14 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
             ? '0 0 30px rgba(251, 191, 36, 0.8)'
             : (isCurrent && !hasThumbnail
               ? "0 0 30px rgba(59, 130, 246, 0.8)"
-              : !hasThumbnail
-              ? "0 2px 8px rgba(0, 0, 0, 0.3)"
-              : "none"),
+              : (isHighlighted && !hasThumbnail
+                ? "0 0 30px rgba(16, 185, 129, 0.8)"
+                : (!hasThumbnail
+                  ? "0 2px 8px rgba(0, 0, 0, 0.3)"
+                  : "none"))),
           cursor: "pointer",
           transition: "all 0.2s ease",
-          opacity: isOnCurrentPath || isCurrent || isQuestionNode ? 1 : 0.7,
+          opacity: isOnCurrentPath || isCurrent || isQuestionNode || isHighlighted ? 1 : 0.7,
         },
         draggable: true,
       };
@@ -433,7 +450,7 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
     }
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [tree, tree.currentNodeId, setNodes, setEdges]);
+  }, [tree, tree.currentNodeId, highlightedNodeIds, setNodes, setEdges]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (event, node) => {
@@ -451,13 +468,56 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        if (showResults) {
+          setShowResults(false);
+          setSearchQuery('');
+        } else {
+          onClose();
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, showResults]);
+
+  // Search handler with debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
+      setHighlightedNodeIds(new Set());
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setIsSearching(true);
+
+      const result = await searchNodes(searchQuery, tree, 10);
+
+      if (result.success && result.results) {
+        setSearchResults(result.results);
+        setShowResults(true);
+        
+        // Highlight matching nodes in the visualization
+        const matchingIds = new Set(result.results.map(r => r.nodeId));
+        setHighlightedNodeIds(matchingIds);
+      } else {
+        setSearchResults([]);
+      }
+
+      setIsSearching(false);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, tree]);
+
+  const handleSearchResultClick = useCallback((nodeId: string) => {
+    onNodeClick(nodeId);
+    setShowResults(false);
+    setSearchQuery('');
+    setHighlightedNodeIds(new Set());
+  }, [onNodeClick]);
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-sm modal-fade">
@@ -483,22 +543,110 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
             }}
           />
 
-          {/* Header panel with title and close button */}
+          {/* Header panel with title, search, and close button */}
           <Panel position="top-center">
-            <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-lg px-6 py-3 shadow-xl">
-              <div className="flex items-center gap-4">
-                <h2 className="text-white text-lg font-semibold">
+            <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-lg px-6 py-3 shadow-xl" style={{ minWidth: '700px', overflow: 'visible' }}>
+              <div className="flex items-center gap-4" style={{ overflow: 'visible' }}>
+                <h2 className="text-white text-lg font-semibold whitespace-nowrap">
                   Learning Path Explorer
                 </h2>
+                
+                {/* Search Input */}
+                <div className="relative flex-shrink-0" style={{ width: '350px', minWidth: '350px' }}>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search nodes..."
+                    className="w-full bg-slate-700 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none placeholder-slate-400 text-sm"
+                    style={{ display: 'block', minHeight: '40px' }}
+                  />
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {isSearching ? (
+                      <svg
+                        className="animate-spin h-4 w-4 text-blue-400"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 text-slate-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors text-sm font-medium"
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors text-sm font-medium whitespace-nowrap"
                 >
                   Close (ESC)
                 </button>
               </div>
             </div>
           </Panel>
+
+          {/* Search Results Panel */}
+          {showResults && searchResults.length > 0 && (
+            <Panel position="top-right">
+              <div className="bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-xl w-80 max-h-96 overflow-y-auto">
+                <div className="px-4 py-2 border-b border-slate-700">
+                  <div className="text-white font-semibold text-sm">
+                    Search Results ({searchResults.length})
+                  </div>
+                </div>
+                <div>
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.nodeId}
+                      onClick={() => handleSearchResultClick(result.nodeId)}
+                      className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-white truncate">
+                            {result.segment.title || result.segment.topic}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1 line-clamp-2">
+                            {result.description}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 text-xs font-medium text-green-400">
+                          {(result.similarity * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Panel>
+          )}
 
           {/* Legend panel */}
           <Panel position="bottom-left">
@@ -515,6 +663,10 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-slate-700 border-2 border-dashed border-slate-500"></div>
                   <span>Leaf Node</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-green-500 border-2 border-green-400"></div>
+                  <span>Search Match</span>
                 </div>
               </div>
             </div>
