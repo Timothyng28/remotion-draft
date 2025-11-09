@@ -28,9 +28,7 @@ const AVAILABLE_VOICES = [
   { id: "ngeTUXucUwpDZ8yZi8OV", name: "3Blue1Brown" },
 ];
 
-export const LandingPage: React.FC<LandingPageProps> = ({
-  onSubmit,
-}) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
   const [topic, setTopic] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>(
@@ -88,13 +86,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 md:p-8 checkered-bg">
-      <div className="max-w-2xl w-full">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12 dot-bg w-full">
+      <div className="w-full max-w-4xl">
         {/* Main Content */}
         <div className="text-center mb-8 sm:mb-12 space-y-4 sm:space-y-6">
           {/* Title */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 animate-fade-in lilita-one-regular">
-            Learn Anything
+            VideoGraph
           </h1>
 
           {/* Subtitle */}
@@ -124,7 +122,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* Drag and drop zone overlay */}
             {isDragging && (
               <div className="absolute inset-0 bg-blue-500/20 border-2 border-blue-500 border-dashed rounded-xl flex items-center justify-center z-10 pointer-events-none">
-                <p className="text-blue-300 font-semibold text-sm sm:text-base">Drop image here</p>
+                <p className="text-blue-300 font-semibold text-sm sm:text-base">
+                  Drop image here
+                </p>
               </div>
             )}
 
@@ -223,7 +223,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </form>
 
         {/* Example Topics */}
-        <div className="animate-fade-in px-2" style={{ animationDelay: "0.8s" }}>
+        <div
+          className="animate-fade-in px-2"
+          style={{ animationDelay: "0.8s" }}
+        >
           <p className="text-slate-500 text-xs sm:text-sm mb-3 sm:mb-4 text-center">
             Or try one of these:
           </p>
@@ -315,69 +318,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </p>
           </div>
         </div>
-
-        {/* Feature Highlights */}
-        <div
-          className="mt-8 sm:mt-12 md:mt-16 grid grid-cols-3 gap-3 sm:gap-4 md:gap-6 animate-fade-in px-2"
-          style={{ animationDelay: "1s" }}
-        >
-          <div className="text-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </div>
-            <p className="text-slate-400 text-xs sm:text-sm">AI-Powered</p>
-          </div>
-
-          <div className="text-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
-                />
-              </svg>
-            </div>
-            <p className="text-slate-400 text-xs sm:text-sm">Interactive</p>
-          </div>
-
-          <div className="text-center">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 text-green-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <p className="text-slate-400 text-xs sm:text-sm">Personalized</p>
-          </div>
-        </div>
       </div>
 
       {/* Add CSS animation and custom styles */}
@@ -404,15 +344,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           font-style: normal;
         }
 
-        .checkered-bg {
-          background-color: #0f172a;
-          background-image: 
-            linear-gradient(45deg, #1e293b 25%, transparent 25%),
-            linear-gradient(-45deg, #1e293b 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, #1e293b 75%),
-            linear-gradient(-45deg, transparent 75%, #1e293b 75%);
-          background-size: 20px 20px;
-          background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        .dot-bg {
+          background-color: #0a0a0a;
+          background-image: radial-gradient(circle, #3a3a3a 1px, transparent 1px);
+          background-size: 24px 24px;
         }
       `}</style>
     </div>
