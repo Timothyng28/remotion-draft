@@ -4,7 +4,7 @@ This guide explains the cached session system for instant-loading video topics.
 
 ## Overview
 
-The cached session system allows pre-selected topics on the landing page to load instantly without waiting for backend video generation. Sessions are pre-generated and stored as static JSON files.
+The cached session system allows pre-selected topics on the landing page to load instantly without waiting for backend video generation. Sessions are pre-generated and stored in Google Cloud Storage (GCS) at `gs://vid-gen-static/cached/`.
 
 ## How It Works
 
@@ -24,19 +24,15 @@ The cached session system allows pre-selected topics on the landing page to load
 ### 2. File Structure
 
 ```
-frontend/
-├── public/
-│   └── cached-sessions/          # Static JSON files
-│       ├── react-hooks.json
-│       ├── binary-search-trees.json
-│       ├── photosynthesis.json
-│       ├── quantum-computing.json
-│       ├── shakespeares-sonnets.json
-│       └── machine-learning.json
-│
-└── src/
-    └── services/
-        └── cachedSessionService.ts  # Load/check cached sessions
+GCS Bucket (vid-gen-static/cached/):
+├── binary-search-trees.json      # Cached session files
+├── photosynthesis.json
+└── pythagoras-theorem.json
+
+frontend/src/
+└── services/
+    └── cachedSessionService.ts   # Load/check cached sessions
+                                  # (fetches from GCS URLs)
 
 scripts/
 ├── generateCachedSessions.ts     # Generation script
@@ -80,10 +76,11 @@ scripts/
    ```
 
 3. **What happens:**
-   - Calls backend for each topic (React Hooks, Binary Search Trees, etc.)
+   - Calls backend for each topic (Binary Search Trees, Photosynthesis, etc.)
    - Waits for video generation via SSE
    - Builds VideoSession with all video URLs
-   - Saves to `frontend/public/cached-sessions/`
+   - Saves JSON files locally
+   - **Note:** After generation, upload JSON files to GCS bucket (`gs://vid-gen-static/cached/`) manually or via script
 
 4. **Duration:**
    - ~1-2 minutes per topic
@@ -145,18 +142,20 @@ Each JSON file contains a complete `VideoSession`:
 
 To refresh cached sessions with new content:
 
-1. Delete old JSON files (or specific ones):
-   ```bash
-   rm frontend/public/cached-sessions/*.json
-   ```
-
-2. Run generator again:
+1. Run generator to create new JSON files:
    ```bash
    cd scripts
    npm run generate
    ```
 
-3. New sessions will be generated and saved
+2. Upload the generated JSON files to GCS:
+   ```bash
+   gsutil cp frontend/public/cached-sessions/*.json gs://vid-gen-static/cached/
+   ```
+   
+   Or use the GCS console to upload manually.
+
+3. The updated sessions will be immediately available to users
 
 ## Configuration
 
@@ -174,8 +173,8 @@ To refresh cached sessions with new content:
 2. **Update cachedSessionService.ts:**
    ```typescript
    const CACHED_SESSIONS: Record<string, string> = {
-     'React Hooks': '/cached-sessions/react-hooks.json',
-     'Your New Topic': '/cached-sessions/your-new-topic.json',  // Add here
+     'Binary Search Trees': 'https://storage.googleapis.com/vid-gen-static/cached/binary-search-trees.json',
+     'Your New Topic': 'https://storage.googleapis.com/vid-gen-static/cached/your-new-topic.json',  // Add here
      // ...
    };
    ```
@@ -189,10 +188,11 @@ To refresh cached sessions with new content:
    ];
    ```
 
-4. **Regenerate sessions:**
+4. **Generate and upload sessions:**
    ```bash
    cd scripts
    npm run generate
+   gsutil cp ../frontend/public/cached-sessions/your-new-topic.json gs://vid-gen-static/cached/
    ```
 
 ## Benefits
@@ -232,9 +232,11 @@ If cached session fails to load:
 ## Troubleshooting
 
 ### Issue: Topics not loading instantly
-- Check `frontend/public/cached-sessions/` has JSON files
+- Verify JSON files are uploaded to GCS bucket (`gs://vid-gen-static/cached/`)
+- Check that GCS bucket has public read permissions
 - Verify topic names match exactly (case-sensitive)
 - Check browser console for errors
+- Test GCS URLs directly in browser (e.g., `https://storage.googleapis.com/vid-gen-static/cached/binary-search-trees.json`)
 
 ### Issue: Generation script fails
 - Ensure backend Modal endpoint is running
@@ -251,7 +253,8 @@ If cached session fails to load:
 Possible improvements:
 - Automatic background regeneration
 - Version tracking for sessions
-- CDN caching for JSON files
-- Compression for smaller file sizes
+- CDN caching for JSON files (GCS already provides edge caching)
+- Compression for smaller file sizes (gzip compression)
 - Progressive loading for large sessions
+- Automated GCS upload in generation script
 

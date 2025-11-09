@@ -2,7 +2,7 @@
  * cachedSessionService.ts
  * 
  * Service for loading pre-cached video sessions.
- * These sessions are pre-generated and stored as static JSON files
+ * These sessions are pre-generated and stored in GCS (vid-gen-static/cached)
  * for instant loading when users click example topics.
  */
 
@@ -11,11 +11,13 @@ import { VideoSession } from '../types/VideoConfig';
 /**
  * Map of topic names to their cached session files
  * Must match the topics in LandingPage.tsx
+ * 
+ * Cached sessions are now stored in GCS bucket for better scalability
  */
 const CACHED_SESSIONS: Record<string, string> = {
-  'Binary Search Trees': '/cached-sessions/binary-search-trees.json',
-  'Photosynthesis': '/cached-sessions/photosynthesis.json',
-  'Pythagoras Theorem': '/cached-sessions/pythagoras-theorem.json',
+  'Binary Search Trees': 'https://storage.googleapis.com/vid-gen-static/cached/binary-search-trees.json',
+  'Photosynthesis': 'https://storage.googleapis.com/vid-gen-static/cached/photosynthesis.json',
+  'Pythagoras Theorem': 'https://storage.googleapis.com/vid-gen-static/cached/pythagoras-theorem.json',
 };
 
 /**
@@ -51,10 +53,31 @@ export async function loadCachedSession(
     const data = await response.json();
     
     // Deserialize the tree (Map objects need special handling)
-    // The stored format has nodes as [[key, value], [key, value], ...]
+    // Cached sessions store nodes as [[key, value], [key, value], ...]
+    // We need to reconstruct the Map while preserving all segment properties
+    const nodes = new Map<string, any>();
+    
+    for (const [nodeId, nodeData] of data.tree.nodes) {
+      // Explicitly reconstruct node to ensure all segment properties are preserved
+      nodes.set(nodeId, {
+        id: nodeData.id,
+        segment: {
+          ...nodeData.segment,
+          // Ensure embedding and description are explicitly copied if they exist
+          embedding: nodeData.segment.embedding,
+          description: nodeData.segment.description,
+        },
+        parentId: nodeData.parentId,
+        childIds: nodeData.childIds,
+        branchIndex: nodeData.branchIndex,
+        branchLabel: nodeData.branchLabel,
+      });
+    }
+    
     const tree = {
-      ...data.tree,
-      nodes: new Map(data.tree.nodes),
+      nodes,
+      rootIds: data.tree.rootIds,
+      currentNodeId: data.tree.currentNodeId,
     };
 
     console.log(`✅ Loaded cached session for "${topic}"`);
