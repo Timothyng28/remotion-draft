@@ -5,10 +5,12 @@
  * Creates a new branch with videos that answer the user's question.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { hasCachedSession, matchQuestionToCachedTopic } from '../services/cachedSessionService';
 
 interface BranchButtonProps {
-  onAskQuestion: (question: string) => void;
+  onAskQuestion: (question: string) => Promise<void>;
+  onAskCachedQuestion?: (question: string, topic: string) => Promise<void>;
   disabled?: boolean;
   className?: string;
 }
@@ -18,6 +20,7 @@ interface BranchButtonProps {
  */
 export const BranchButton: React.FC<BranchButtonProps> = ({
   onAskQuestion,
+  onAskCachedQuestion,
   disabled = false,
   className = '',
 }) => {
@@ -29,10 +32,25 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
     setShowQuestionInput(true);
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const matchedCachedTopic = useMemo(() => {
+    if (!question.trim()) {
+      return null;
+    }
+    const match = matchQuestionToCachedTopic(question);
+    if (match && hasCachedSession(match)) {
+      return match;
+    }
+    return null;
+  }, [question]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (question.trim()) {
-      onAskQuestion(question.trim());
+      if (matchedCachedTopic && onAskCachedQuestion) {
+        await onAskCachedQuestion(question.trim(), matchedCachedTopic);
+      } else {
+        await onAskQuestion(question.trim());
+      }
       setQuestion('');
       setShowQuestionInput(false);
     }
@@ -60,6 +78,12 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
               autoFocus
             />
           </div>
+          
+          {matchedCachedTopic && (
+            <p className="text-xs text-emerald-300 bg-emerald-900/40 border border-emerald-500/40 rounded-lg px-3 py-2">
+              ⚡ Instant answer available: we already generated content for "{matchedCachedTopic}".
+            </p>
+          )}
           
           <div className="flex gap-2">
             <button

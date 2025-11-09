@@ -14,6 +14,8 @@ import {
   VideoSegment,
   createVideoSession,
   updateContext,
+  LearningTree,
+  TreeNode,
 } from '../types/VideoConfig';
 import {
   getCurrentNode,
@@ -36,6 +38,7 @@ import { generateVideoScenes, GenerationProgress, SectionDetail } from '../servi
 import { analyzeQuestion } from '../services/questionAnalysisService';
 import { generateQuizQuestion, evaluateQuizAnswer } from '../services/quizService';
 import { generateNodeDescription, embedText } from '../services/searchService';
+import { hasCachedSession, loadCachedSession, matchQuestionToCachedTopic } from '../services/cachedSessionService';
 
 /**
  * Generation request for parallel processing
@@ -86,10 +89,12 @@ export interface VideoControllerState {
   removeGenerationRequest: (requestId: string) => void;
   
   // Actions
+  loadCachedTopic: (topic: string) => Promise<void>;
   handleAnswer: (answer: string) => Promise<void>;
   requestNextSegment: () => Promise<void>;
   requestNewTopic: (topic: string) => Promise<void>;
   navigateToNode: (nodeId: string) => void;
+  handleCachedQuestionBranch: (question: string, matchedTopic: string) => Promise<void>;
   handleQuestionBranch: (question: string) => Promise<void>;
   handleQuizAnswer: (answer: string) => Promise<void>;
   triggerQuizQuestion: () => Promise<void>;
@@ -257,7 +262,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
   
   // Parallel generation tracking
   const [activeGenerations, setActiveGenerations] = useState<GenerationRequest[]>([]);
-  const [mostRecentGenerationId, setMostRecentGenerationId] = useState<string | null>(null);
+  const [, setMostRecentGenerationId] = useState<string | null>(null);
   
   // Track in-progress questions to prevent duplicates
   const processingQuestionsRef = useRef<Set<string>>(new Set());
@@ -305,6 +310,159 @@ export const VideoController: React.FC<VideoControllerProps> = ({
   const removeGenerationRequest = useCallback((requestId: string) => {
     setActiveGenerations(prev => prev.filter(req => req.id !== requestId));
   }, []);
+  
+  /**
+   * Helper: Create unique segment ID when cloning cached sessions
+   */
+  const createClonedSegment = (segment: VideoSegment): VideoSegment => {
+    const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    return {
+      ...segment,
+      id: `${segment.id || 'segment'}_cached_${uniqueSuffix}`,
+      userAnswer: undefined,
+    };
+  };
+  
+  /**
+   * Helper: Clone a cached subtree into the current session tree
+   */
+  const cloneCachedSubtree = (
+    sourceTree: LearningTree,
+    sourceNodeId: string,
+    targetParentId: string | null,
+    branchLabelOverride?: string
+  ): string | null => {
+    const sourceNode = sourceTree.nodes.get(sourceNodeId);
+    if (!sourceNode) {
+      console.warn('cloneCachedSubtree: Source node not found', sourceNodeId);
+      return null;
+    }
+    
+    const clonedSegment = createClonedSegment(sourceNode.segment);
+    
+    let newNode: TreeNode;
+    if (targetParentId === null) {
+      newNode = addRootNode(session.tree, clonedSegment);
+    } else {
+      newNode = addChildNode(
+        session.tree,
+        targetParentId,
+        clonedSegment,
+        branchLabelOverride ?? sourceNode.branchLabel
+      );
+    }
+    
+    sourceNode.childIds.forEach((childId) => {
+      cloneCachedSubtree(sourceTree, childId, newNode.id);
+    });
+    
+    return newNode.id;
+  };
+  
+  /**
+   * Helper: Attach cached tree as new root(s) or branch
+   */
+  const attachCachedTree = (
+    cachedTree: LearningTree,
+    targetParentId: string | null,
+    branchLabel?: string
+  ): string | null => {
+    let firstNewNodeId: string | null = null;
+    
+    cachedTree.rootIds.forEach((rootId, index) => {
+      const newNodeId = cloneCachedSubtree(
+        cachedTree,
+        rootId,
+        targetParentId,
+        targetParentId ? (index === 0 ? branchLabel : undefined) : undefined
+      );
+      
+      if (!firstNewNodeId && newNodeId) {
+        firstNewNodeId = newNodeId;
+      }
+    });
+    
+    return firstNewNodeId;
+  };
+  
+  /**
+   * Load a cached topic tree as a new independent root
+   */
+  const loadCachedTopic = useCallback(async (topic: string) => {
+    console.log(`Attempting to load cached topic: ${topic}`);
+    
+    const request = createGenerationRequest('topic', topic, null);
+    setActiveGenerations(prev => [...prev, request]);
+    setMostRecentGenerationId(request.id);
+    
+    try {
+      updateGenerationRequest(request.id, { status: 'generating' });
+      
+      if (!hasCachedSession(topic)) {
+        const errorMsg = `Cached session not available for "${topic}"`;
+        updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+        console.warn(`[${request.id}] ${errorMsg}`);
+        return;
+      }
+      
+      const cachedSession = await loadCachedSession(topic);
+      if (!cachedSession) {
+        const errorMsg = `Failed to load cached session for "${topic}"`;
+        updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+        console.error(`[${request.id}] ${errorMsg}`);
+        return;
+      }
+      
+      const newRootId = attachCachedTree(cachedSession.tree, null);
+      if (!newRootId) {
+        const errorMsg = `Unable to attach cached tree for "${topic}"`;
+        updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+        console.error(`[${request.id}] ${errorMsg}`);
+        return;
+      }
+      
+      const historyTopics = session.context.historyTopics.includes(topic)
+        ? session.context.historyTopics
+        : [...session.context.historyTopics, topic];
+      
+      const newContext = updateContext(session.context, {
+        previousTopic: topic,
+        historyTopics,
+        depth: 0,
+      });
+      
+      navigateToNodeHelper(session.tree, newRootId);
+      
+      const updatedSession = {
+        ...session,
+        context: newContext,
+        lastUpdatedAt: new Date().toISOString(),
+      };
+      
+      setSession(updatedSession);
+      saveVideoSession(updatedSession);
+      
+      updateGenerationRequest(request.id, {
+        status: 'complete',
+        resultNodeId: newRootId,
+      });
+      
+      setMostRecentGenerationId(current => {
+        if (current === request.id) {
+          console.log(`[${request.id}] Navigated to cached topic root ${newRootId}`);
+        }
+        return current;
+      });
+      
+      console.log(`[${request.id}] ✓ Cached topic loaded successfully: ${topic}`);
+    } catch (err) {
+      const errorMsg = err instanceof Error
+        ? err.message
+        : 'Unknown error occurred while loading cached topic';
+      updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+      console.error(`[${request.id}] Error loading cached topic:`, err);
+    }
+  }, [session, attachCachedTree, updateGenerationRequest]);
   
   /**
    * Generate the first segment when component mounts
@@ -679,10 +837,106 @@ export const VideoController: React.FC<VideoControllerProps> = ({
   }, [session]);
   
   /**
+   * Handle question by grafting a cached topic branch (when available)
+   */
+  const handleCachedQuestionBranch = useCallback(async (question: string, matchedTopic: string) => {
+    if (!currentNode || !currentSegment) {
+      console.warn('No current node to branch from');
+      return;
+    }
+    
+    const questionKey = `${currentNode.id}:${question.trim().toLowerCase()}`;
+    if (processingQuestionsRef.current.has(questionKey)) {
+      console.warn(`❌ DUPLICATE CALL BLOCKED: Question "${question}" is already being processed for node ${currentNode.id}`);
+      return;
+    }
+    
+    processingQuestionsRef.current.add(questionKey);
+    console.log(`✅ Cached question processing started: "${question}" (topic match: ${matchedTopic})`);
+    
+    const request = createGenerationRequest('question', question, currentNode.id);
+    setActiveGenerations(prev => [...prev, request]);
+    setMostRecentGenerationId(request.id);
+    
+    try {
+      updateGenerationRequest(request.id, { status: 'generating' });
+      
+      if (!hasCachedSession(matchedTopic)) {
+        const errorMsg = `Cached session not available for "${matchedTopic}"`;
+        updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+        console.warn(`[${request.id}] ${errorMsg}`);
+        return;
+      }
+      
+      const cachedSession = await loadCachedSession(matchedTopic);
+      if (!cachedSession) {
+        const errorMsg = `Failed to load cached session for "${matchedTopic}"`;
+        updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+        console.error(`[${request.id}] ${errorMsg}`);
+        return;
+      }
+      
+      const newBranchRootId = attachCachedTree(cachedSession.tree, currentNode.id, matchedTopic);
+      if (!newBranchRootId) {
+        const errorMsg = `Unable to attach cached branch for "${matchedTopic}"`;
+        updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+        console.error(`[${request.id}] ${errorMsg}`);
+        return;
+      }
+      
+      const historyTopics = session.context.historyTopics.includes(matchedTopic)
+        ? session.context.historyTopics
+        : [...session.context.historyTopics, matchedTopic];
+      
+      const updatedSession = {
+        ...session,
+        context: updateContext(session.context, {
+          previousTopic: matchedTopic,
+          historyTopics,
+        }),
+        lastUpdatedAt: new Date().toISOString(),
+      };
+      
+      navigateToNodeHelper(session.tree, newBranchRootId);
+      setSession(updatedSession);
+      saveVideoSession(updatedSession);
+      
+      updateGenerationRequest(request.id, {
+        status: 'complete',
+        resultNodeId: newBranchRootId,
+      });
+      
+      setMostRecentGenerationId(current => {
+        if (current === request.id) {
+          console.log(`[${request.id}] Navigated to cached question branch ${newBranchRootId}`);
+        }
+        return current;
+      });
+      
+      console.log(`[${request.id}] ✓ Cached branch attached for topic "${matchedTopic}"`);
+    } catch (err) {
+      const errorMsg = err instanceof Error
+        ? err.message
+        : 'Unknown error occurred while attaching cached branch';
+      updateGenerationRequest(request.id, { status: 'error', error: errorMsg });
+      console.error(`[${request.id}] Error attaching cached branch:`, err);
+    } finally {
+      processingQuestionsRef.current.delete(questionKey);
+      console.log(`✓ Cached question processing completed and cleaned up: "${question}" (key: ${questionKey})`);
+    }
+  }, [currentNode, currentSegment, session, attachCachedTree, updateGenerationRequest]);
+  
+  /**
    * Handle user question and create a branch with answer videos
    * Now supports parallel generation
    */
   const handleQuestionBranch = useCallback(async (question: string) => {
+    const matchedTopic = matchQuestionToCachedTopic(question);
+    if (matchedTopic && hasCachedSession(matchedTopic)) {
+      await handleCachedQuestionBranch(question, matchedTopic);
+      return;
+    }
+    
     if (!currentNode || !currentSegment) {
       console.warn('No current node to branch from');
       return;
@@ -740,7 +994,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
       let currentParentNodeId = currentNode.id;
       
       // Store all generated segments paired with their phase info, then add to tree at once
-      const generatedItems: Array<{ segment: VideoSegment; phase: typeof phases[0]; phaseIndex: number }> = [];
+      const generatedItems: Array<{ segment: VideoSegment; phase: typeof phases[0] }> = [];
       
       for (let i = 0; i < phases.length; i++) {
         const phase = phases[i];
@@ -781,7 +1035,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
           enrichSegmentWithSearchMetadata(newSegment).catch(console.error);
           
           // Store segment with its corresponding phase info to avoid index mismatch
-          generatedItems.push({ segment: newSegment, phase, phaseIndex: i });
+          generatedItems.push({ segment: newSegment, phase });
           console.log(`[${request.id}] ✓ Generated video ${i + 1}: ${phase.sub_topic}`);
         } else {
           const errorMsg = result.error || `Failed to generate video for: ${phase.sub_topic}`;
@@ -793,7 +1047,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
       // Step 3: Add all generated segments to tree in one batch
       if (generatedItems.length > 0) {
         for (let i = 0; i < generatedItems.length; i++) {
-          const { segment, phase, phaseIndex } = generatedItems[i];
+          const { segment, phase } = generatedItems[i];
           const newNode = addChildNode(
             session.tree,
             currentParentNodeId,
@@ -858,7 +1112,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
       processingQuestionsRef.current.delete(questionKey);
       console.log(`✓ Question processing completed and cleaned up: "${question}" (key: ${questionKey})`);
     }
-  }, [currentNode, currentSegment, session, onError]);
+  }, [currentNode, currentSegment, session, onError, handleCachedQuestionBranch]);
   
   /**
    * Generate and show quiz question for leaf nodes
@@ -1397,10 +1651,12 @@ export const VideoController: React.FC<VideoControllerProps> = ({
     isGeneratingQuiz,
     activeGenerations,
     removeGenerationRequest,
+  loadCachedTopic,
     handleAnswer,
     requestNextSegment,
     requestNewTopic,
     navigateToNode,
+  handleCachedQuestionBranch,
     handleQuestionBranch,
     handleQuizAnswer,
     triggerQuizQuestion,

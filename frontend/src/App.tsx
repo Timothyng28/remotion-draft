@@ -260,6 +260,7 @@ export const App: React.FC = () => {
     []
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const requestClosingQuestion = useCallback(
     (sessionSnapshot: VideoSession) => {
       const topic =
@@ -323,6 +324,8 @@ export const App: React.FC = () => {
     },
     [currentTopic, executeClosingQuestionRequest]
   );
+
+  void requestClosingQuestion;
 
   const handleRetryClosingQuestion = useCallback(() => {
     if (closingPayloadRef.current) {
@@ -391,8 +394,10 @@ export const App: React.FC = () => {
             isGenerating,
             error: videoError,
             requestNextSegment,
+            loadCachedTopic,
             requestNewTopic,
             navigateToNode,
+            handleCachedQuestionBranch,
             handleQuestionBranch,
             showQuiz,
             quizQuestion,
@@ -401,12 +406,10 @@ export const App: React.FC = () => {
             isGeneratingQuiz,
             isEvaluating,
             handleQuizAnswer,
-            triggerQuizQuestion,
             closeQuiz,
             createQuestionNode,
             handleLeafQuestionAnswer,
             generateFollowUpVideos,
-            goToSegment,
             activeGenerations,
             removeGenerationRequest,
           }) => {
@@ -711,8 +714,10 @@ export const App: React.FC = () => {
                       onAnswer={() => Promise.resolve()}
                       onRequestNext={requestNextSegment}
                       onNewTopic={requestNewTopic}
+                      onLoadCachedTopic={loadCachedTopic}
                       onReset={handleReset}
                       onAskQuestion={handleQuestionBranch}
+                      onAskCachedQuestion={handleCachedQuestionBranch}
                       currentNodeNumber={currentNodeNumber}
                       activeGenerations={activeGenerations}
                       onNavigateToGeneration={navigateToNode}

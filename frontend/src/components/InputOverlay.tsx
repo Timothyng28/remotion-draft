@@ -11,17 +11,20 @@ import { useState, FormEvent } from "react";
 import { BranchButton } from "./BranchButton";
 import { GenerationCard } from "./GenerationCard";
 import { GenerationRequest } from "../controllers/VideoController";
+import { hasCachedSession } from "../services/cachedSessionService";
 
 interface InputOverlayProps {
   hasQuestion: boolean;
   questionText?: string;
   isGenerating: boolean;
   isEvaluating: boolean;
-  onAnswer: (answer: string) => void;
-  onRequestNext: () => void;
-  onNewTopic: (topic: string) => void;
+  onAnswer: (answer: string) => Promise<void>;
+  onRequestNext: () => Promise<void>;
+  onNewTopic: (topic: string) => Promise<void>;
+  onLoadCachedTopic: (topic: string) => Promise<void>;
   onReset: () => void;
-  onAskQuestion: (question: string) => void;
+  onAskQuestion: (question: string) => Promise<void>;
+  onAskCachedQuestion?: (question: string, topic: string) => Promise<void>;
   currentNodeNumber: string;
   activeGenerations: GenerationRequest[];
   onNavigateToGeneration?: (nodeId: string) => void;
@@ -36,8 +39,10 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
   onAnswer,
   onRequestNext,
   onNewTopic,
+  onLoadCachedTopic,
   onReset,
   onAskQuestion,
+  onAskCachedQuestion,
   currentNodeNumber,
   activeGenerations,
   onNavigateToGeneration,
@@ -47,20 +52,25 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
   const [showNewTopicInput, setShowNewTopicInput] = useState(false);
   const [newTopicValue, setNewTopicValue] = useState("");
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (hasQuestion && input.trim()) {
-      onAnswer(input.trim());
+      await onAnswer(input.trim());
       setInput("");
     }
   };
 
-  const handleNewTopicSubmit = (e: FormEvent) => {
+  const handleNewTopicSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    if (newTopicValue.trim()) {
-      onNewTopic(newTopicValue.trim());
+    const trimmedTopic = newTopicValue.trim();
+    if (trimmedTopic) {
+      if (hasCachedSession(trimmedTopic)) {
+        await onLoadCachedTopic(trimmedTopic);
+      } else {
+        await onNewTopic(trimmedTopic);
+      }
       setNewTopicValue("");
       setShowNewTopicInput(false);
     }
@@ -183,6 +193,7 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
             {/* Branch Button */}
             <BranchButton
               onAskQuestion={onAskQuestion}
+              onAskCachedQuestion={onAskCachedQuestion}
               disabled={isEvaluating}
             />
             
@@ -224,6 +235,7 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
           {/* Branch Button */}
           <BranchButton
             onAskQuestion={onAskQuestion}
+            onAskCachedQuestion={onAskCachedQuestion}
             disabled={false}
           />
           

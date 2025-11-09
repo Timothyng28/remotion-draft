@@ -78,3 +78,37 @@ export function getCachedTopics(): string[] {
   return Object.keys(CACHED_SESSIONS);
 }
 
+/**
+ * Normalize text for comparison
+ */
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Match a freeform question to one of the cached topics.
+ * Returns the cached topic name if a match is found.
+ */
+export function matchQuestionToCachedTopic(question: string): string | null {
+  const normalizedQuestion = normalizeText(question);
+  if (!normalizedQuestion) {
+    return null;
+  }
+
+  for (const topic of getCachedTopics()) {
+    const normalizedTopic = normalizeText(topic);
+    if (
+      normalizedQuestion.includes(normalizedTopic) ||
+      normalizedTopic.includes(normalizedQuestion)
+    ) {
+      return topic;
+    }
+  }
+
+  return null;
+}
+
