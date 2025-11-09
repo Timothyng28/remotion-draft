@@ -43,6 +43,7 @@ import {
 type AppState = "landing" | "learning" | "error" | "closing";
 
 interface PendingTopicRequest {
+  id: string;
   topic: string;
   imageData?: string;
   imageFileName?: string;
@@ -208,6 +209,7 @@ export const App: React.FC = () => {
     const existingSession = cachedSession ?? loadVideoSession();
 
     if (existingSession && existingSession.tree.nodes.size > 0) {
+      const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       let sessionToUse: VideoSession = existingSession;
 
       if (voiceId && existingSession.context.voiceId !== voiceId) {
@@ -225,6 +227,7 @@ export const App: React.FC = () => {
       }
 
       setPendingTopicRequest({
+        id: requestId,
         topic: finalTopic,
         imageData: imageData || undefined,
         imageFileName: imageFileName || undefined,
@@ -590,19 +593,30 @@ export const App: React.FC = () => {
               hasSeenFirstVideo,
             ]);
 
+            const processedTopicRequestRef = useRef<string | null>(null);
+
             // IMPORTANT: Call all hooks BEFORE any conditional returns
             useEffect(() => {
               if (!pendingTopicRequest) {
+                processedTopicRequestRef.current = null;
                 return;
               }
 
+              if (processedTopicRequestRef.current === pendingTopicRequest.id) {
+                return;
+              }
+
+              processedTopicRequestRef.current = pendingTopicRequest.id;
               const request = pendingTopicRequest;
-              setPendingTopicRequest(null);
               void requestNewTopic(
                 request.topic,
                 request.imageData,
                 request.imageFileName
-              );
+              ).finally(() => {
+                setPendingTopicRequest((current) =>
+                  current && current.id === request.id ? null : current
+                );
+              });
             }, [
               pendingTopicRequest,
               requestNewTopic,
