@@ -15,7 +15,6 @@ import {
   evaluateQuizAnswer,
   generateQuizQuestion,
 } from "../services/quizService";
-import { embedText, generateNodeDescription } from "../services/searchService";
 import {
   generateVideoScenes,
   GenerationProgress,
@@ -133,56 +132,6 @@ interface VideoControllerProps {
   onError?: (error: string) => void;
   children: (state: VideoControllerState) => React.ReactNode;
   initialSession?: VideoSession; // NEW: Cached session to restore from localStorage
-}
-
-/**
- * Helper function to enrich a segment with description and embedding
- * for semantic search. Runs asynchronously in the background.
- */
-async function enrichSegmentWithSearchMetadata(
-  segment: VideoSegment
-): Promise<void> {
-  try {
-    // Generate description if not already present
-    if (
-      !segment.description &&
-      (segment.title || segment.topic || segment.voiceoverScript)
-    ) {
-      console.log(
-        `Generating description for segment: ${segment.title || segment.topic}`
-      );
-      const descResult = await generateNodeDescription(segment);
-
-      if (descResult.success && descResult.description) {
-        segment.description = descResult.description;
-        console.log(
-          `✓ Description generated: ${segment.description?.substring(0, 50)}...`
-        );
-      } else {
-        // Fallback description
-        segment.description = segment.title || segment.topic;
-        console.log(`✓ Using fallback description: ${segment.description}`);
-      }
-    }
-
-    // Generate embedding if not already present
-    if (!segment.embedding && segment.description) {
-      console.log(`Generating embedding for segment description`);
-      const embedResult = await embedText(segment.description);
-
-      if (embedResult.success && embedResult.embedding) {
-        segment.embedding = embedResult.embedding;
-        console.log(
-          `✓ Embedding generated (${embedResult.embedding.length} dimensions)`
-        );
-      } else {
-        console.warn(`Failed to generate embedding: ${embedResult.error}`);
-      }
-    }
-  } catch (error) {
-    // Don't throw - just log the error and continue
-    console.error("Error enriching segment with search metadata:", error);
-  }
 }
 
 /**
@@ -533,6 +482,8 @@ export const VideoController: React.FC<VideoControllerProps> = ({
               title: detail?.title,
               renderingStatus: "completed", // Already rendered
               voiceoverScript: voiceoverScript || undefined,
+              description: detail?.description,
+              embedding: detail?.embedding,
             };
           }
         );
@@ -772,10 +723,9 @@ export const VideoController: React.FC<VideoControllerProps> = ({
                 title: detail?.title,
                 renderingStatus: "completed",
                 voiceoverScript: voiceoverScript || undefined,
+                description: detail?.description,
+                embedding: detail?.embedding,
               };
-
-              // Enrich with description and embedding (async, non-blocking)
-              enrichSegmentWithSearchMetadata(segment).catch(console.error);
 
               return segment;
             }
@@ -1096,10 +1046,9 @@ export const VideoController: React.FC<VideoControllerProps> = ({
               title: detail?.title,
               renderingStatus: "completed",
               voiceoverScript: detail?.voiceover_script,
+              description: detail?.description,
+              embedding: detail?.embedding,
             };
-
-            // Enrich with description and embedding (async, non-blocking)
-            enrichSegmentWithSearchMetadata(newSegment).catch(console.error);
 
             // Store segment with its corresponding phase info to avoid index mismatch
             generatedItems.push({ segment: newSegment, phase, phaseIndex: i });
@@ -1325,7 +1274,9 @@ export const VideoController: React.FC<VideoControllerProps> = ({
                 thumbnailUrl: detail?.thumbnail_url,
                 title: `Correct Answer: ${currentSegment.topic}`,
                 renderingStatus: "completed",
-                voiceoverScript: detail?.voiceover_script,
+              voiceoverScript: detail?.voiceover_script,
+              description: detail?.description,
+              embedding: detail?.embedding,
               };
 
               // Add explanation as child node
@@ -1719,6 +1670,8 @@ export const VideoController: React.FC<VideoControllerProps> = ({
                 title: detail?.title,
                 renderingStatus: "completed",
                 voiceoverScript: voiceoverScript || undefined,
+                description: detail?.description,
+                embedding: detail?.embedding,
               };
             }
           );

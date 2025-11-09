@@ -950,10 +950,72 @@ Return ONLY the title text, nothing else."""
         
         print(f"✓ Generated {len(section_titles)} section titles")
 
+        sorted_sections = sorted(successful_sections)
+
+        # STAGE: Generate descriptions and embeddings for semantic search
+        section_descriptions: dict[int, str] = {}
+        section_embeddings: dict[int, list[float]] = {}
+
+        if sorted_sections:
+            print(
+                f"🔍 Generating descriptions and embeddings for {len(sorted_sections)} sections..."
+            )
+            from .description_logic import generate_description_logic
+            from .embedding_api_logic import embed_batch_logic
+
+            # Step 1: Generate descriptions for each section
+            for section_num in sorted_sections:
+                title = section_titles.get(section_num, f"Section {section_num}")
+                script = section_scripts.get(section_num, "")
+
+                desc_result = generate_description_logic(
+                    topic=title,
+                    title=title if title != prompt else None,
+                    voiceover_script=script,
+                )
+
+                description = desc_result.get("description")
+                if desc_result.get("success") and isinstance(description, str):
+                    section_descriptions[section_num] = description
+                    preview = description.replace("\n", " ")[:80]
+                    print(f"✓ [Section {section_num}] Description: {preview}...")
+                else:
+                    fallback_description = title
+                    section_descriptions[section_num] = fallback_description
+                    print(
+                        f"⚠️  [Section {section_num}] Using fallback description due to generation failure"
+                    )
+
+            # Step 2: Batch embed all descriptions
+            descriptions_list = [section_descriptions[num] for num in sorted_sections]
+            embed_result = embed_batch_logic(descriptions_list)
+
+            embeddings = embed_result.get("embeddings")
+            if embed_result.get("success") and isinstance(embeddings, list):
+                if len(embeddings) == len(sorted_sections):
+                    for index, section_num in enumerate(sorted_sections):
+                        section_embeddings[section_num] = embeddings[index]
+                    print(
+                        f"✓ Generated {len(embeddings)} embeddings ({embed_result.get('dimension')} dimensions)"
+                    )
+                else:
+                    print(
+                        "⚠️  Embedding generation returned unexpected number of vectors "
+                        f"(expected {len(sorted_sections)}, got {len(embeddings)})"
+                    )
+            else:
+                print(
+                    f"⚠️  Embedding generation failed: {embed_result.get('error', 'Unknown error')}"
+                )
+
+            print(
+                f"✓ Descriptions and embeddings ready for {len(section_descriptions)} sections"
+            )
+
         # Build list of section URLs (sections are uploaded to GCS at {job_id}/section_{num}.mp4)
         section_urls = []
         section_details = []
-        for section_num in sorted(successful_sections):
+        for section_num in sorted_sections:
             section_url = f"https://storage.googleapis.com/vid-gen-static/{job_id}/section_{section_num}.mp4"
             thumbnail_url = f"https://storage.googleapis.com/vid-gen-static/{job_id}/section_{section_num}_thumbnail.png"
             section_urls.append(section_url)
@@ -962,7 +1024,9 @@ Return ONLY the title text, nothing else."""
                 "title": section_titles.get(section_num, f"Section {section_num}"),
                 "video_url": section_url,
                 "thumbnail_url": thumbnail_url,
-                "voiceover_script": section_scripts.get(section_num, "")
+                "voiceover_script": section_scripts.get(section_num, ""),
+                "description": section_descriptions.get(section_num),
+                "embedding": section_embeddings.get(section_num)
             })
 
         print(f"\n✓ Rendering complete: {len(successful_sections)} / {len(video_structure)} sections uploaded to GCS")

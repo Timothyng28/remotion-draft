@@ -18,6 +18,8 @@ export interface SectionDetail {
   thumbnail_url?: string;
   title?: string;
   voiceover_script?: string;
+  description?: string;
+  embedding?: number[];
 }
 
 /**
