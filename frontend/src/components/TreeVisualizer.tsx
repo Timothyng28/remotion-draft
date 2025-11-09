@@ -273,13 +273,13 @@ export const TreeVisualizer: React.FC<TreeVisualizerProps> = ({
       
       {/* Tree visualization */}
       <div 
-        className="w-full h-full cursor-pointer relative"
+        className="w-full h-full cursor-pointer relative tree-visualizer-mini"
       >
         <style>{`
-          .react-flow__minimap,
-          .react-flow__controls,
-          .react-flow__attribution,
-          .react-flow__panel {
+          .tree-visualizer-mini .react-flow__minimap,
+          .tree-visualizer-mini .react-flow__controls,
+          .tree-visualizer-mini .react-flow__attribution,
+          .tree-visualizer-mini .react-flow__panel {
             display: none !important;
           }
         `}</style>

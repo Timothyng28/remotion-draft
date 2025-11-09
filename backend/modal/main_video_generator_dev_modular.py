@@ -77,6 +77,8 @@ image = (
         "cerebras-cloud-sdk",
         "optillm",  # For CePO (Cerebras Planning & Optimization)
         "google-cloud-storage>=2.10.0",
+        "sentence-transformers>=2.2.0",  # For semantic search embeddings
+        "torch>=2.0.0",  # Required by sentence-transformers
     )
     # Add services directory as a Python package
     .add_local_dir(
@@ -110,6 +112,8 @@ from dev.reflection_logic import (
     generate_closing_question_logic,
     generate_reflection_questions_logic,
 )
+from dev.description_logic import generate_description_logic
+from dev.embedding_api_logic import embed_text_logic, embed_batch_logic
 
 # Import pure Python logic functions (now available in image)
 from dev.renderer import render_single_scene_logic
@@ -214,6 +218,98 @@ async def generate_closing_question(request_data: dict):
     Delegates to pure Python logic function.
     """
     return generate_closing_question_logic(request_data)
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name(s) for s in MAIN_SECRETS],
+)
+@modal.fastapi_endpoint(method="POST")
+async def embed_text(request_data: dict):
+    """
+    FastAPI endpoint for embedding a single text.
+    
+    Request body:
+        {
+            "text": "Text to embed"
+        }
+    
+    Response:
+        {
+            "success": true,
+            "embedding": [float array],
+            "dimension": int
+        }
+    """
+    text = request_data.get("text", "")
+    if not text:
+        return {"success": False, "error": "Text is required"}
+    
+    return embed_text_logic(text)
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name(s) for s in MAIN_SECRETS],
+)
+@modal.fastapi_endpoint(method="POST")
+async def embed_batch(request_data: dict):
+    """
+    FastAPI endpoint for embedding multiple texts efficiently.
+    
+    Request body:
+        {
+            "texts": ["text1", "text2", ...],
+            "batch_size": 32  // optional
+        }
+    
+    Response:
+        {
+            "success": true,
+            "embeddings": [[float array], ...],
+            "count": int,
+            "dimension": int
+        }
+    """
+    texts = request_data.get("texts", [])
+    batch_size = request_data.get("batch_size", 32)
+    
+    if not texts:
+        return {"success": False, "error": "Texts array is required"}
+    
+    return embed_batch_logic(texts, batch_size)
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name(s) for s in MAIN_SECRETS],
+)
+@modal.fastapi_endpoint(method="POST")
+async def generate_description(request_data: dict):
+    """
+    FastAPI endpoint for generating a searchable description from segment metadata.
+    
+    Request body:
+        {
+            "topic": "Topic of the segment",
+            "title": "Optional title",  // optional
+            "voiceover_script": "Optional voiceover text"  // optional
+        }
+    
+    Response:
+        {
+            "success": true,
+            "description": "Generated description"
+        }
+    """
+    topic = request_data.get("topic", "")
+    title = request_data.get("title")
+    voiceover_script = request_data.get("voiceover_script")
+    
+    if not topic:
+        return {"success": False, "error": "Topic is required"}
+    
+    return generate_description_logic(topic, title, voiceover_script)
 
 
 @app.local_entrypoint()

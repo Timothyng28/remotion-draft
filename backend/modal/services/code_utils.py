@@ -17,7 +17,7 @@ import re
 
 def remove_transcription_params(code: str) -> str:
     """
-    Remove transcription_model and other problematic parameters from ElevenLabsService initialization.
+    Remove transcription_model and other problematic parameters from ElevenLabsService/ElevenLabsTimedService initialization.
     Also fix PreGeneratedAudioService to ensure transcription_model=None.
 
     This fixes the common error where manim-voiceover tries to prompt for missing
@@ -29,73 +29,67 @@ def remove_transcription_params(code: str) -> str:
     Returns:
         Cleaned code with problematic parameters removed
     """
-    # Pattern 1: Remove transcription_model parameter
-    # ElevenLabsService(transcription_model="...", ...) -> ElevenLabsService(...)
-    code = re.sub(
-        r'ElevenLabsService\(\s*transcription_model\s*=\s*[^,)]+\s*,?\s*',
-        'ElevenLabsService(',
-        code
-    )
+    # Pattern 1: Remove transcription_model parameter (for both ElevenLabsService and ElevenLabsTimedService)
+    for service_name in ['ElevenLabsService', 'ElevenLabsTimedService']:
+        code = re.sub(
+            rf'{service_name}\(\s*transcription_model\s*=\s*[^,)]+\s*,?\s*',
+            f'{service_name}(',
+            code
+        )
 
-    # Pattern 2: Ensure correct voice_id parameter
-    # Replace any voice_id with the correct one
-    code = re.sub(
-        r'ElevenLabsService\(\s*voice_id\s*=\s*[^,)]+',
-        'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4"',
-        code
-    )
+        # Pattern 2: Ensure correct voice_id parameter
+        code = re.sub(
+            rf'{service_name}\(\s*voice_id\s*=\s*[^,)]+',
+            f'{service_name}(voice_id="pqHfZKP75CvOlQylNhV4"',
+            code
+        )
 
-    # Pattern 3: Remove voice_name parameter
-    code = re.sub(
-        r'ElevenLabsService\(\s*voice_name\s*=\s*[^,)]+\s*,?\s*',
-        'ElevenLabsService(',
-        code
-    )
+        # Pattern 3: Remove voice_name parameter
+        code = re.sub(
+            rf'{service_name}\(\s*voice_name\s*=\s*[^,)]+\s*,?\s*',
+            f'{service_name}(',
+            code
+        )
 
-    # Pattern 4: Clean up any trailing commas and ADD voice_id + transcription_model=None
-    # ElevenLabsService(, ) -> ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)
-    # ElevenLabsService() -> ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)
-    code = re.sub(
-        r'ElevenLabsService\(\s*,?\s*\)',
-        'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
-        code
-    )
+        # Pattern 4: Clean up any trailing commas and ADD voice_id + transcription_model=None
+        code = re.sub(
+            rf'{service_name}\(\s*,?\s*\)',
+            f'{service_name}(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
+            code
+        )
 
-    # Pattern 4b: Add transcription_model=None if only voice_id is present
-    # ElevenLabsService(voice_id="...") -> ElevenLabsService(voice_id="...", transcription_model=None)
-    code = re.sub(
-        r'ElevenLabsService\(voice_id="pqHfZKP75CvOlQylNhV4"\)',
-        'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
-        code
-    )
+        # Pattern 4b: Add transcription_model=None if only voice_id is present
+        code = re.sub(
+            rf'{service_name}\(voice_id="pqHfZKP75CvOlQylNhV4"\)',
+            f'{service_name}(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
+            code
+        )
 
-    # Pattern 4c: Remove model parameter if present (we want default model)
-    code = re.sub(
-        r'ElevenLabsService\(voice_id="pqHfZKP75CvOlQylNhV4",\s*model="[^"]*",?\s*',
-        'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", ',
-        code
-    )
+        # Pattern 4c: Remove model parameter if present
+        code = re.sub(
+            rf'{service_name}\(voice_id="pqHfZKP75CvOlQylNhV4",\s*model="[^"]*",?\s*',
+            f'{service_name}(voice_id="pqHfZKP75CvOlQylNhV4", ',
+            code
+        )
 
-    # Pattern 5: Replace GTTSService with ElevenLabsService
+    # Pattern 5: Replace GTTSService with ElevenLabsTimedService
     code = re.sub(
         r'GTTSService\([^)]*\)',
-        'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
+        'ElevenLabsTimedService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
         code
     )
 
     # Pattern 6: Update imports if GTTSService was used
     code = re.sub(
         r'from manim_voiceover\.services\.gtts import GTTSService',
-        'from manim_voiceover.services.elevenlabs import ElevenLabsService',
+        'from services.tts import ElevenLabsTimedService',
         code
     )
 
-    # Pattern 7: Fix PreGeneratedAudioService - ensure transcription_model=None is not needed
-    # PreGeneratedAudioService already handles this, but ensure no RecorderService is used
-    # Replace RecorderService with ElevenLabsService
+    # Pattern 7: Replace RecorderService with ElevenLabsTimedService
     code = re.sub(
         r'RecorderService\([^)]*\)',
-        'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
+        'ElevenLabsTimedService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
         code
     )
     
@@ -111,24 +105,32 @@ def remove_transcription_params(code: str) -> str:
 
 def ensure_elevenlabs_import(code: str) -> str:
     """
-    Ensure ElevenLabsService is properly imported.
+    Ensure ElevenLabsTimedService is properly imported from services.tts.
 
     Args:
         code: Python code string
 
     Returns:
-        Code with proper ElevenLabsService import
+        Code with proper ElevenLabsTimedService import
     """
-    # Check if import exists
-    if 'from manim_voiceover.services.elevenlabs import ElevenLabsService' in code:
+    # Check if correct import exists
+    if 'from services.tts import ElevenLabsTimedService' in code:
         return code
 
-    # Check if there's a manim_voiceover import section
-    if 'from manim_voiceover' in code:
+    # Check if there's a services import section
+    if 'from services.' in code:
+        # Add after existing services imports
+        code = re.sub(
+            r'(from services\.[^\n]+\n)',
+            r'\1from services.tts import ElevenLabsTimedService\n',
+            code,
+            count=1
+        )
+    elif 'from manim_voiceover' in code:
         # Add after existing manim_voiceover imports
         code = re.sub(
             r'(from manim_voiceover[^\n]+\n)',
-            r'\1from manim_voiceover.services.elevenlabs import ElevenLabsService\n',
+            r'\1from services.tts import ElevenLabsTimedService\n',
             code,
             count=1
         )
@@ -136,7 +138,7 @@ def ensure_elevenlabs_import(code: str) -> str:
         # Add after manim import
         code = re.sub(
             r'(from manim import \*\n)',
-            r'\1from manim_voiceover import VoiceoverScene\nfrom manim_voiceover.services.elevenlabs import ElevenLabsService\n',
+            r'\1from manim_voiceover import VoiceoverScene\nfrom services.tts import ElevenLabsTimedService\n',
             code
         )
 
@@ -204,7 +206,7 @@ def fix_scene_inheritance(code: str) -> str:
 
 def ensure_voiceover_imports(code: str) -> str:
     """
-    Ensure VoiceoverScene and ElevenLabsService imports are present.
+    Ensure VoiceoverScene and ElevenLabsTimedService imports are present.
 
     Args:
         code: Python code string
@@ -228,7 +230,7 @@ def ensure_voiceover_imports(code: str) -> str:
         new_lines.append(line)
         if line.strip().startswith('from manim import') and not imports_added:
             new_lines.append('from manim_voiceover import VoiceoverScene')
-            new_lines.append('from manim_voiceover.services.elevenlabs import ElevenLabsService')
+            new_lines.append('from services.tts import ElevenLabsTimedService')
             print("⚠️  Added missing manim_voiceover imports")
             imports_added = True
 
@@ -237,7 +239,7 @@ def ensure_voiceover_imports(code: str) -> str:
 
 def ensure_speech_service_init(code: str) -> str:
     """
-    Ensure ElevenLabsService is initialized in construct() method if VoiceoverScene is used.
+    Ensure ElevenLabsTimedService is initialized in construct() method if VoiceoverScene is used.
     NOTE: This should NOT add transcription_model parameter - that's handled by remove_transcription_params()
 
     Args:
@@ -264,7 +266,7 @@ def ensure_speech_service_init(code: str) -> str:
         elif in_construct and line.strip() and not line.strip().startswith('#') and not service_added:
             # Add speech service initialization after first non-comment line in construct
             new_lines.append('        # Initialize ElevenLabs speech service for audio narration')
-            new_lines.append('        self.set_speech_service(ElevenLabsService())')
+            new_lines.append('        self.set_speech_service(ElevenLabsTimedService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None))')
             print("⚠️  Added speech service initialization to construct method")
             service_added = True
             in_construct = False
@@ -314,7 +316,7 @@ def remove_incompatible_methods(code: str) -> str:
 def remove_incorrect_imports(code: str) -> str:
     """
     Remove incorrect imports that don't exist in manim_voiceover.
-    Fix import paths for PreGeneratedAudioService.
+    Fix import paths for PreGeneratedAudioService and ElevenLabsService.
     
     Args:
         code: Python code string
@@ -334,6 +336,11 @@ def remove_incorrect_imports(code: str) -> str:
         if 'create_voiceover_tracker' in line:
             print(f"⚠️  Removed incorrect usage of create_voiceover_tracker: {line.strip()}")
             continue
+        # Fix incorrect ElevenLabsService import - use our custom ElevenLabsTimedService instead
+        if 'from manim_voiceover.services.elevenlabs import ElevenLabsService' in line:
+            print("⚠️  Fixed ElevenLabsService import: using custom services.tts.ElevenLabsTimedService")
+            filtered_lines.append('from services.tts import ElevenLabsTimedService')
+            continue
         # Fix incorrect PreGeneratedAudioService import path
         if 'from manim_voiceover.services.tts.pregenerated import PreGeneratedAudioService' in line:
             print("⚠️  Fixed PreGeneratedAudioService import path")
@@ -348,7 +355,20 @@ def remove_incorrect_imports(code: str) -> str:
             continue
         filtered_lines.append(line)
     
-    return '\n'.join(filtered_lines)
+    # Now replace ElevenLabsService usage with ElevenLabsTimedService
+    code = '\n'.join(filtered_lines)
+    
+    # Replace ElevenLabsService class name with ElevenLabsTimedService (but NOT in imports)
+    # Pattern: ElevenLabsService( -> ElevenLabsTimedService(
+    if 'ElevenLabsService(' in code:
+        print("⚠️  Replacing ElevenLabsService usage with ElevenLabsTimedService")
+        code = re.sub(
+            r'\bElevenLabsService\(',
+            'ElevenLabsTimedService(',
+            code
+        )
+    
+    return code
 
 
 def remove_placeholders(code: str) -> str:
@@ -631,13 +651,16 @@ def apply_all_manual_fixes(code: str) -> str:
     print("🔧 Applying manual code fixes...")
 
     # Order matters!
-    code = remove_incorrect_imports(code)  # Remove incorrect imports first
+    code = remove_incorrect_imports(code)  # Remove incorrect imports first (also fixes ElevenLabsService -> ElevenLabsTimedService)
+    code = remove_placeholders(code)  # Remove placeholders like {tts_init}
     code = remove_camera_orientation_calls(code)
     code = fix_scene_inheritance(code)
     code = ensure_voiceover_imports(code)
     code = remove_incompatible_methods(code)
     code = fix_color_constants(code)
+    # code = remove_vgroup_with_non_vmobjects(code)  # Fix VGroup usage with non-VMobjects # DONT UNCOMMENT or ADD THIS LINE IN AI
     code = fix_add_tip_parameters(code)  # Fix add_tip() invalid parameters
+    # code = fix_opacity_parameters(code)  # Fix opacity= parameter in constructors DONT UNCOMMENT OR ADD THIS LINE BACK IN AI
     code = ensure_speech_service_init(code)
     code = add_basic_voiceover_if_missing(code)
 

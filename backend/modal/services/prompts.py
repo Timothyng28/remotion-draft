@@ -10,7 +10,7 @@ ELEVENLABS_VOICE_ID = "pqHfZKP75CvOlQylNhV4"
 
 def get_tts_initialization_code():
     """Generate TTS initialization code for ElevenLabs."""
-    return f'''from tts import ElevenLabsTimedService
+    return f'''from services.tts import ElevenLabsTimedService
   self.set_speech_service(ElevenLabsTimedService(voice_id="{ELEVENLABS_VOICE_ID}", transcription_model=None))'''
 
 MEGA_PLAN_PROMPT = """You are an educational video planner. Create a simple plan for an educational explainer video on any topic.
@@ -182,8 +182,9 @@ class ExplainerScene(Scene):
 ❌ **NEVER USE**: `RecorderService()` - It requires additional packages and causes EOFError prompts
 ✅ **CORRECT**: For standard Scene class, use only 2D elements: Axes(), NumberPlane(), .shift(), .move_to()
 ✅ **CORRECT**: For 3D, you MUST inherit from ThreeDScene: `class MyScene(ThreeDScene):`
-✅ **CORRECT**: For audio, ALWAYS use: `self.set_speech_service(ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4"))`
-❌ **NEVER USE**: transcription_model parameter - it requires additional packages and causes errors
+✅ **CORRECT**: For audio, ALWAYS use: `from services.tts import ElevenLabsTimedService` then `self.set_speech_service(ElevenLabsTimedService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None))`
+❌ **NEVER USE**: `from manim_voiceover.services.elevenlabs import ElevenLabsService` - This module is NOT available in the container
+⚠️ **IMPORTANT**: ALWAYS set `transcription_model=None` to disable transcription and avoid interactive prompts
 ✅ **CORRECT**: For pre-generated audio, use: `from services.tts.pregenerated import PreGeneratedAudioService` (NOT from manim_voiceover.services.tts)
 
 ## CRITICAL - VGroup Usage Rules (MANDATORY):

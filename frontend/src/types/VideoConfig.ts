@@ -26,6 +26,9 @@ export interface VideoSegment {
   voiceoverScript?: string; // Combined narration text for this segment
   userAnswer?: string; // Learner's response collected during this segment
   isQuestionNode?: boolean; // True if this is a question-only node (no video)
+  // Semantic search metadata
+  description?: string; // Auto-generated description for semantic search
+  embedding?: number[]; // Vector embedding of the description (384 dimensions)
 }
 
 /**
