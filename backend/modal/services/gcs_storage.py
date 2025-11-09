@@ -287,6 +287,143 @@ class GCSStorageService:
             metadata=metadata
         )
     
+    def upload_plan(
+        self,
+        plan_data: Dict[str, Any],
+        job_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Upload the video generation plan to GCS as a JSON file.
+        
+        Args:
+            plan_data: Dictionary containing plan information
+            job_id: Job identifier
+            
+        Returns:
+            Dictionary with upload results
+        """
+        try:
+            # Create GCS path: {job_id}/plan.json
+            gcs_path = f"{job_id}/plan.json"
+            
+            # Create blob
+            blob = self.bucket.blob(gcs_path)
+            
+            # Set content type
+            blob.content_type = "application/json"
+            
+            # Set metadata
+            blob.metadata = {
+                "job_id": job_id,
+                "type": "plan"
+            }
+            
+            # Set cache control for public access
+            blob.cache_control = "public, max-age=3600"
+            
+            # Upload JSON data
+            print(f"📤 Uploading plan to gs://{self.bucket_name}/{gcs_path}...")
+            blob.upload_from_string(
+                json.dumps(plan_data, indent=2),
+                content_type="application/json"
+            )
+            
+            # Make blob publicly accessible
+            blob.make_public()
+            
+            # Get public URL
+            public_url = blob.public_url
+            
+            upload_data = {
+                "success": True,
+                "filename": gcs_path,
+                "public_url": public_url,
+                "bucket": self.bucket_name,
+                "uploaded_at": datetime.utcnow().isoformat(),
+                "file_size": len(json.dumps(plan_data)),
+                "storage_path": f"{self.bucket_name}/{gcs_path}"
+            }
+            
+            print(f"✅ Plan uploaded successfully: {public_url}")
+            return upload_data
+            
+        except Exception as e:
+            print(f"❌ Error uploading plan: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "gcs_path": gcs_path
+            }
+    
+    def upload_scripts(
+        self,
+        scripts_data: Dict[str, Any],
+        job_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Upload the voiceover scripts to GCS as a JSON file.
+        
+        Args:
+            scripts_data: Dictionary containing scripts for each section
+            job_id: Job identifier
+            
+        Returns:
+            Dictionary with upload results
+        """
+        try:
+            # Create GCS path: {job_id}/scripts.json
+            gcs_path = f"{job_id}/scripts.json"
+            
+            # Create blob
+            blob = self.bucket.blob(gcs_path)
+            
+            # Set content type
+            blob.content_type = "application/json"
+            
+            # Set metadata
+            blob.metadata = {
+                "job_id": job_id,
+                "type": "scripts"
+            }
+            
+            # Set cache control for public access
+            blob.cache_control = "public, max-age=3600"
+            
+            # Upload JSON data
+            print(f"📤 Uploading scripts to gs://{self.bucket_name}/{gcs_path}...")
+            blob.upload_from_string(
+                json.dumps(scripts_data, indent=2),
+                content_type="application/json"
+            )
+            
+            # Make blob publicly accessible
+            blob.make_public()
+            
+            # Get public URL
+            public_url = blob.public_url
+            
+            upload_data = {
+                "success": True,
+                "filename": gcs_path,
+                "public_url": public_url,
+                "bucket": self.bucket_name,
+                "uploaded_at": datetime.utcnow().isoformat(),
+                "file_size": len(json.dumps(scripts_data)),
+                "storage_path": f"{self.bucket_name}/{gcs_path}"
+            }
+            
+            print(f"✅ Scripts uploaded successfully: {public_url}")
+            return upload_data
+            
+        except Exception as e:
+            print(f"❌ Error uploading scripts: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "gcs_path": gcs_path
+            }
+    
+    
     def get_public_url(self, gcs_path: str) -> str:
         """
         Get public URL for a file in GCS.

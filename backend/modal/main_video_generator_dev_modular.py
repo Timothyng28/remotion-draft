@@ -70,7 +70,7 @@ image = (
         "aiohttp>=3.9.0",  # For async HTTP requests (parallel audio generation)
         "python-dotenv>=0.21.0",
         "manim==0.18.1",
-        "manim-voiceover[transcribe]>=0.3.0",  # Include transcription extra to prevent EOFError prompts
+        "manim-voiceover[transcribe,elevenlabs]>=0.3.0",  # Include transcription and elevenlabs extras
         "elevenlabs==0.2.27",
         "fastapi[standard]>=0.104.0",
         "anthropic>=0.40.0",

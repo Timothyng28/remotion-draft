@@ -30,6 +30,52 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # ═══════════════════════════════════════════════════════════════════════════
 ELEVENLABS_VOICE_ID = "pqHfZKP75CvOlQylNhV4"  # ElevenLabs voice
 
+# ═══════════════════════════════════════════════════════════════════════════
+# SCRIPT EXTRACTION UTILITIES
+# ═══════════════════════════════════════════════════════════════════════════
+import ast
+import re
+
+VOICEOVER_PATTERN = re.compile(
+    r'self\.voiceover\(\s*(?:text\s*=\s*)?(?P<prefix>[fFbBrRuU]{0,2})(?P<quote>"""|\'\'\'|"|\')(?P<text>.*?)(?P=quote)',
+    re.DOTALL,
+)
+
+
+def extract_voiceover_script(manim_code: str) -> str:
+    """
+    Extract concatenated narration text from self.voiceover(...) calls within the Manim code.
+    Returns a single string combining all detected voiceover snippets in chronological order.
+    """
+    if not manim_code:
+        return ""
+
+    narration_segments = []
+
+    for match in VOICEOVER_PATTERN.finditer(manim_code):
+        prefix = (match.group("prefix") or "").lower()
+        quote = match.group("quote")
+        text = match.group("text")
+
+        # Reconstruct the original literal for safer parsing
+        literal = f"{prefix}{quote}{text}{quote}"
+
+        parsed_text = text
+        # Only attempt literal evaluation when not dealing with f-strings
+        if "f" not in prefix:
+            try:
+                parsed_text = ast.literal_eval(literal)
+            except Exception:
+                parsed_text = text
+
+        # Normalize whitespace and append
+        if isinstance(parsed_text, str):
+            cleaned = " ".join(parsed_text.split())
+            if cleaned:
+                narration_segments.append(cleaned)
+
+    return " ".join(narration_segments)
+
 # Create Modal App
 app = modal.App("main-video-generator")
 
@@ -50,7 +96,7 @@ image = (
         "requests>=2.31.0",
         "python-dotenv>=0.21.0",
         "manim==0.18.1",
-        "manim-voiceover>=0.3.0",
+        "manim-voiceover[elevenlabs]>=0.3.0",
         "elevenlabs==0.2.27",  # TTS provider
         "fastapi[standard]>=0.104.0",
         "anthropic>=0.40.0",
@@ -461,6 +507,29 @@ def generate_educational_video(
             print(f"   {idx}. {section['section']} ({section.get('duration', 'N/A')})")
         print()
 
+        # Upload plan to GCS
+        try:
+            from datetime import datetime
+
+            from services.gcs_storage import GCSStorageService
+            
+            print(f"\n📤 Uploading plan to GCS...")
+            gcs_service = GCSStorageService()
+            plan_upload_data = {
+                "job_id": job_id,
+                "prompt": prompt,
+                "mode": "production",  # Production version (not dev)
+                "plan": mega_plan,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            plan_upload_result = gcs_service.upload_plan(plan_upload_data, job_id)
+            if plan_upload_result and plan_upload_result.get("success"):
+                print(f"✓ Plan uploaded to GCS: {plan_upload_result.get('public_url')}")
+            else:
+                print(f"⚠️  Plan upload failed (non-fatal): {plan_upload_result.get('error', 'Unknown error') if plan_upload_result else 'No result'}")
+        except Exception as e:
+            print(f"⚠️  Plan upload error (non-fatal): {type(e).__name__}: {e}")
+
         yield update_job_progress({
             "status": "processing",
             "progress_percentage": 15,
@@ -484,10 +553,11 @@ def generate_educational_video(
             "job_id": job_id
         })
 
-        # Track spawned render jobs
+        # Track spawned render jobs and extracted scripts
         import asyncio
 
         render_function_calls = []
+        section_scripts = {}  # section_num -> script_text
 
         async def generate_code_async(section_info):
             """Generate code using async Anthropic API via llm.py service."""
@@ -571,6 +641,11 @@ Generate a SINGLE scene for this section only. The scene should be self-containe
                 manim_code = apply_all_manual_fixes(manim_code)
                 print(f"✓ [Async {section_num}] Code cleaned and fixed")
 
+                # Extract voiceover script for this section
+                narration_text = extract_voiceover_script(manim_code)
+                section_scripts[section_num] = narration_text
+                print(f"✓ [Async {section_num}] Extracted script ({len(narration_text)} chars)")
+
                 # IMMEDIATELY spawn render container (don't wait)
                 print(f"🚀 [Async {section_num}] Spawning Modal container for rendering (including ElevenLabs audio)...")
                 render_call = render_single_scene.spawn(section_num, manim_code, str(work_dir), job_id)
@@ -605,6 +680,33 @@ Generate a SINGLE scene for this section only. The scene should be self-containe
         print(f"\n✓ Code generation complete: {successful_generations} / {len(video_structure)} sections spawned renders")
 
         capture_log(f"Code generation complete: {successful_generations}/{len(video_structure)} sections succeeded", level="info")
+
+        # Upload scripts to GCS
+        try:
+            from datetime import datetime
+
+            from services.gcs_storage import GCSStorageService
+            
+            print(f"\n📤 Uploading scripts to GCS...")
+            gcs_service = GCSStorageService()
+            scripts_upload_data = {
+                "job_id": job_id,
+                "scripts": {
+                    str(section_num): {
+                        "text": script,
+                        "section_info": video_structure[section_num - 1] if section_num - 1 < len(video_structure) else {}
+                    }
+                    for section_num, script in section_scripts.items()
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            scripts_upload_result = gcs_service.upload_scripts(scripts_upload_data, job_id)
+            if scripts_upload_result and scripts_upload_result.get("success"):
+                print(f"✓ Scripts uploaded to GCS: {scripts_upload_result.get('public_url')}")
+            else:
+                print(f"⚠️  Scripts upload failed (non-fatal): {scripts_upload_result.get('error', 'Unknown error') if scripts_upload_result else 'No result'}")
+        except Exception as e:
+            print(f"⚠️  Scripts upload error (non-fatal): {type(e).__name__}: {e}")
 
         # Now wait for all render containers to complete (in parallel)
         print(f"\n{'─'*60}")

@@ -293,6 +293,29 @@ def generate_educational_video_logic(
             print(f"   {idx}. {section['section']} ({section.get('duration', 'N/A')})")
         print()
 
+        # Upload plan to GCS
+        try:
+            from datetime import datetime
+
+            from services.gcs_storage import GCSStorageService
+            
+            print(f"\n📤 Uploading plan to GCS...")
+            gcs_service = GCSStorageService()
+            plan_upload_data = {
+                "job_id": job_id,
+                "prompt": prompt,
+                "mode": mode,
+                "plan": mega_plan,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            plan_upload_result = gcs_service.upload_plan(plan_upload_data, job_id)
+            if plan_upload_result and plan_upload_result.get("success"):
+                print(f"✓ Plan uploaded to GCS: {plan_upload_result.get('public_url')}")
+            else:
+                print(f"⚠️  Plan upload failed (non-fatal): {plan_upload_result.get('error', 'Unknown error') if plan_upload_result else 'No result'}")
+        except Exception as e:
+            print(f"⚠️  Plan upload error (non-fatal): {type(e).__name__}: {e}")
+
         yield update_job_progress({
             "status": "processing",
             "progress_percentage": 15,
@@ -736,6 +759,33 @@ Generate the fixed code now:"""
                 audio_map[section_num] = None
         
         print(f"\n✓ Audio generation complete: {successful_audio} / {len(section_scripts)} sections")
+        
+        # Upload scripts to GCS
+        try:
+            from datetime import datetime
+
+            from services.gcs_storage import GCSStorageService
+            
+            print(f"\n📤 Uploading scripts to GCS...")
+            gcs_service = GCSStorageService()
+            scripts_upload_data = {
+                "job_id": job_id,
+                "scripts": {
+                    str(section_num): {
+                        "text": script,
+                        "section_info": video_structure[section_num - 1] if section_num - 1 < len(video_structure) else {}
+                    }
+                    for section_num, script in section_scripts.items()
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            scripts_upload_result = gcs_service.upload_scripts(scripts_upload_data, job_id)
+            if scripts_upload_result and scripts_upload_result.get("success"):
+                print(f"✓ Scripts uploaded to GCS: {scripts_upload_result.get('public_url')}")
+            else:
+                print(f"⚠️  Scripts upload failed (non-fatal): {scripts_upload_result.get('error', 'Unknown error') if scripts_upload_result else 'No result'}")
+        except Exception as e:
+            print(f"⚠️  Scripts upload error (non-fatal): {type(e).__name__}: {e}")
         
         yield update_job_progress({
             "status": "processing",
