@@ -61,41 +61,20 @@ export function getParent(tree: LearningTree, nodeId: string): TreeNode | null {
 }
 
 /**
- * Calculate hierarchical node number with multi-root support
- * Root nodes get numbered 1, 2, 3... based on their order in rootIds
- * Children get numbered relative to their root: 2.1, 2.2.1, etc.
+ * Calculate depth-based node number
+ * All nodes at the same depth from their root get the same number
+ * Root nodes = 1, direct children = 2, grandchildren = 3, etc.
  */
 export function getNodeNumber(tree: LearningTree, nodeId: string): string {
   const node = getNode(tree, nodeId);
   if (!node) return '';
   
-  // Find which root tree this node belongs to
+  // Get the path from root to this node
   const pathToRoot = getPathFromRoot(tree, nodeId);
   if (pathToRoot.length === 0) return '';
   
-  const rootNode = pathToRoot[0];
-  const rootIndex = tree.rootIds.indexOf(rootNode.id);
-  
-  if (rootIndex === -1) return '';
-  
-  // Root number is 1-based
-  const rootNumber = rootIndex + 1;
-  
-  // If this IS the root node, just return the root number
-  if (node.id === rootNode.id) {
-    return rootNumber.toString();
-  }
-  
-  // Build path from root to this node (excluding root)
-  const path: number[] = [rootNumber];
-  let currentNode: TreeNode | null = node;
-  
-  while (currentNode && currentNode.parentId !== null) {
-    path.splice(1, 0, currentNode.branchIndex + 1); // +1 because branchIndex is 0-based
-    currentNode = getParent(tree, currentNode.id);
-  }
-  
-  return path.join('.');
+  // Depth is the length of the path (root = 1, children = 2, grandchildren = 3, etc.)
+  return pathToRoot.length.toString();
 }
 
 /**

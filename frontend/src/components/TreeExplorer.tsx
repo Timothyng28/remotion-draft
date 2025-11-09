@@ -239,7 +239,7 @@ function calculateTreeLayout(tree: LearningTree) {
   // First root at origin
   traverseTree(rootIds[0], 0, 0, positions);
   
-  // Position remaining roots with collision avoidance (horizontally separated)
+  // Position remaining roots with collision avoidance (vertically stacked)
   for (let i = 1; i < rootIds.length; i++) {
     const rootId = rootIds[i];
     
@@ -249,16 +249,16 @@ function calculateTreeLayout(tree: LearningTree) {
     const treeNodes = getNodesInTree(tree, rootId);
     const treeBounds = calculateTreeBounds(tempPositions, treeNodes);
     
-    // Find safe position to the right of all existing trees
-    let safeX = 0;
+    // Find safe position below all existing trees
+    let safeY = 0;
     const existingNodeIds = Array.from(positions.keys());
     if (existingNodeIds.length > 0) {
       const existingBounds = calculateTreeBounds(positions, existingNodeIds);
-      safeX = existingBounds.maxX + treeClearance + Math.abs(treeBounds.minX);
+      safeY = existingBounds.maxY + treeClearance + Math.abs(treeBounds.minY);
     }
     
     // Layout this tree at the safe position
-    traverseTree(rootId, safeX, 0, positions);
+    traverseTree(rootId, 0, safeY, positions);
   }
 
   return positions;

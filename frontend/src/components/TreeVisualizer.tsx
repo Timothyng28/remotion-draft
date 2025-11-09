@@ -272,7 +272,6 @@ export const TreeVisualizer: React.FC<TreeVisualizerProps> = ({
       {/* Tree visualization */}
       <div 
         className="w-full h-full cursor-pointer relative"
-        onClick={handleNodeClick}
       >
         <style>{`
           .react-flow__minimap,
@@ -292,9 +291,10 @@ export const TreeVisualizer: React.FC<TreeVisualizerProps> = ({
           elementsSelectable={false}
           zoomOnScroll={false}
           panOnScroll={false}
-          panOnDrag={false}
+          panOnDrag={true}
           zoomOnDoubleClick={false}
           preventScrolling={true}
+          onPaneClick={handleNodeClick}
           fitView
           fitViewOptions={{ 
             padding: 0.3,
