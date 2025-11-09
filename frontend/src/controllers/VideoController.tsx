@@ -8,7 +8,7 @@
  * - Maintains learning context
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   VideoSession,
   VideoSegment,
@@ -183,6 +183,9 @@ export const VideoController: React.FC<VideoControllerProps> = ({
   // Parallel generation tracking
   const [activeGenerations, setActiveGenerations] = useState<GenerationRequest[]>([]);
   const [mostRecentGenerationId, setMostRecentGenerationId] = useState<string | null>(null);
+  
+  // Track in-progress questions to prevent duplicates
+  const processingQuestionsRef = useRef<Set<string>>(new Set());
   
   // Get current segment from tree
   const currentNode = getCurrentNode(session.tree);
@@ -605,6 +608,17 @@ export const VideoController: React.FC<VideoControllerProps> = ({
       return;
     }
     
+    // DUPLICATE PREVENTION: Check if this exact question is already being processed
+    const questionKey = `${currentNode.id}:${question.trim().toLowerCase()}`;
+    if (processingQuestionsRef.current.has(questionKey)) {
+      console.warn(`❌ DUPLICATE CALL BLOCKED: Question "${question}" is already being processed for node ${currentNode.id}`);
+      return;
+    }
+    
+    // Mark this question as being processed
+    processingQuestionsRef.current.add(questionKey);
+    console.log(`✅ Question processing started: "${question}" (key: ${questionKey})`);
+    
     // Create generation request
     const request = createGenerationRequest('question', question, currentNode.id);
     
@@ -645,8 +659,8 @@ export const VideoController: React.FC<VideoControllerProps> = ({
       let firstNewNodeId: string | null = null;
       let currentParentNodeId = currentNode.id;
       
-      // Store all generated segments first, then add to tree at once
-      const generatedSegments: VideoSegment[] = [];
+      // Store all generated segments paired with their phase info, then add to tree at once
+      const generatedItems: Array<{ segment: VideoSegment; phase: typeof phases[0]; phaseIndex: number }> = [];
       
       for (let i = 0; i < phases.length; i++) {
         const phase = phases[i];
@@ -683,7 +697,8 @@ export const VideoController: React.FC<VideoControllerProps> = ({
             voiceoverScript: detail?.voiceover_script,
           };
           
-          generatedSegments.push(newSegment);
+          // Store segment with its corresponding phase info to avoid index mismatch
+          generatedItems.push({ segment: newSegment, phase, phaseIndex: i });
           console.log(`[${request.id}] ✓ Generated video ${i + 1}: ${phase.sub_topic}`);
         } else {
           const errorMsg = result.error || `Failed to generate video for: ${phase.sub_topic}`;
@@ -693,13 +708,13 @@ export const VideoController: React.FC<VideoControllerProps> = ({
       }
       
       // Step 3: Add all generated segments to tree in one batch
-      if (generatedSegments.length > 0) {
-        for (let i = 0; i < generatedSegments.length; i++) {
-          const phase = phases[i];
+      if (generatedItems.length > 0) {
+        for (let i = 0; i < generatedItems.length; i++) {
+          const { segment, phase, phaseIndex } = generatedItems[i];
           const newNode = addChildNode(
             session.tree,
             currentParentNodeId,
-            generatedSegments[i],
+            segment,
             phase.sub_topic
           );
           
@@ -738,7 +753,7 @@ export const VideoController: React.FC<VideoControllerProps> = ({
         setSession(updatedSession);
         saveVideoSession(updatedSession);
         
-        console.log(`[${request.id}] ✓ Question branch created with ${generatedSegments.length} videos`);
+        console.log(`[${request.id}] ✓ Question branch created with ${generatedItems.length} videos`);
       } else {
         const errorMsg = 'Failed to create any videos for the question';
         updateGenerationRequest(request.id, { 
@@ -755,6 +770,10 @@ export const VideoController: React.FC<VideoControllerProps> = ({
         error: errorMsg
       });
       console.error(`[${request.id}] Error:`, err);
+    } finally {
+      // CLEANUP: Remove question from processing set
+      processingQuestionsRef.current.delete(questionKey);
+      console.log(`✓ Question processing completed and cleaned up: "${question}" (key: ${questionKey})`);
     }
   }, [currentNode, currentSegment, session, onError]);
   
