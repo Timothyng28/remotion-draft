@@ -56,7 +56,7 @@ export async function generateVideoScenes(
   jobId?: string;
 }> {
   const modalEndpoint =
-    "https://video-gen--main-video-generator-dev-generate-video-api.modal.run/";
+    "https://video-gen-2--main-video-generator-dev-generate-video-api-dev.modal.run/";
 
   try {
     console.log("Generating video scenes for topic:", topic);
