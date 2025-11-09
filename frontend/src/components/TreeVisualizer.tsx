@@ -146,11 +146,11 @@ export const TreeVisualizer: React.FC<TreeVisualizerProps> = ({
       }
     }
     
-    // Find the window of levels to display (centered around current node)
+    // Show all levels in the tree (no windowing)
     const currentPath = getPathFromRoot(tree, currentNode.id);
     const currentLevel = currentPath.length - 1;
-    const startLevel = Math.max(0, currentLevel - 4);
-    const endLevel = Math.min(nodeLevels.length - 1, currentLevel + 5);
+    const startLevel = 0;
+    const endLevel = nodeLevels.length - 1;
     
     // Calculate center position - where the current node should be
     // We want it centered in the viewport
