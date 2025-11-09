@@ -47,7 +47,9 @@ export interface GenerationProgress {
 export async function generateVideoScenes(
   topic: string,
   onProgress?: (progress: GenerationProgress) => void,
-  voiceId?: string
+  voiceId?: string,
+  imageData?: string,
+  imageFilename?: string
 ): Promise<{
   success: boolean;
   sections?: string[];
@@ -60,11 +62,28 @@ export async function generateVideoScenes(
     "https://video-gen-2--main-video-generator-dev-generate-video-api.modal.run/";
 
   try {
-    console.log("Generating video scenes for topic:", topic, "with voice ID:", voiceId);
+    console.log(
+      "Generating video scenes for topic:",
+      topic,
+      "with voice ID:",
+      voiceId
+    );
+    if (imageData) {
+      console.log("Image context provided - will be included in generation");
+      if (imageFilename) {
+        console.log("Image filename:", imageFilename);
+      }
+    }
 
     const requestBody: any = { topic: topic };
     if (voiceId) {
       requestBody.voice_id = voiceId;
+    }
+    if (imageData) {
+      requestBody.image_context = imageData;
+    }
+    if (imageFilename) {
+      requestBody.image_filename = imageFilename;
     }
 
     const response = await fetch(modalEndpoint, {

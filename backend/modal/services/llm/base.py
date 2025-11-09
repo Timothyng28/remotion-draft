@@ -3,15 +3,34 @@ Base classes and data structures for LLM services
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
 
 
 @dataclass
 class LLMMessage:
-    """Standard message format for LLM interactions."""
+    """
+    Standard message format for LLM interactions.
+    
+    Content can be either:
+    - str: Simple text message
+    - List[Dict]: Content blocks for multimodal (text + images)
+    
+    Example multimodal content:
+    [
+        {"type": "text", "text": "What's in this image?"},
+        {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": "iVBORw0KGgo..."
+            }
+        }
+    ]
+    """
     role: str  # "user", "assistant", "system"
-    content: str
+    content: Union[str, List[Dict[str, Any]]]
 
 
 @dataclass
@@ -27,6 +46,54 @@ class LLMResponse:
 class LLMServiceError(Exception):
     """Base exception for LLM service errors."""
     pass
+
+
+def create_image_content_block(base64_data: str, media_type: str = "image/png") -> Dict[str, Any]:
+    """
+    Helper function to create an image content block for multimodal messages.
+    
+    Args:
+        base64_data: Base64-encoded image data (with or without data URI prefix)
+        media_type: Image media type (image/png, image/jpeg, image/gif, image/webp)
+    
+    Returns:
+        Dictionary representing an image content block
+    """
+    # Remove data URI prefix if present (e.g., "data:image/png;base64,")
+    if base64_data.startswith("data:"):
+        # Extract media type from data URI if present
+        if ";base64," in base64_data:
+            prefix = base64_data.split(";base64,")[0]
+            if prefix.startswith("data:"):
+                detected_media_type = prefix[5:]  # Remove "data:" prefix
+                if detected_media_type.startswith("image/"):
+                    media_type = detected_media_type
+            base64_data = base64_data.split(";base64,")[1]
+    
+    return {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": media_type,
+            "data": base64_data
+        }
+    }
+
+
+def create_text_content_block(text: str) -> Dict[str, str]:
+    """
+    Helper function to create a text content block for multimodal messages.
+    
+    Args:
+        text: Text content
+    
+    Returns:
+        Dictionary representing a text content block
+    """
+    return {
+        "type": "text",
+        "text": text
+    }
 
 
 class LLMService(ABC):

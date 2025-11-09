@@ -1,14 +1,20 @@
 /**
  * BranchButton.tsx
- * 
+ *
  * Button for asking questions about the current topic.
  * Creates a new branch with videos that answer the user's question.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from "react";
+import { useImageUpload } from "../hooks/useImageUpload";
+import { ImagePreview } from "./ImagePreview";
 
 interface BranchButtonProps {
-  onAskQuestion: (question: string) => void;
+  onAskQuestion: (
+    question: string,
+    imageData?: string,
+    imageFilename?: string
+  ) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -19,48 +25,139 @@ interface BranchButtonProps {
 export const BranchButton: React.FC<BranchButtonProps> = ({
   onAskQuestion,
   disabled = false,
-  className = '',
+  className = "",
 }) => {
   const [showQuestionInput, setShowQuestionInput] = useState(false);
-  const [question, setQuestion] = useState('');
-  
+  const [question, setQuestion] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Image upload functionality
+  const {
+    imageData,
+    imagePreview,
+    fileName,
+    isDragging,
+    error: imageError,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleFileInputChange,
+    removeImage,
+    clearError,
+  } = useImageUpload();
+
   const handleClick = () => {
     if (disabled) return;
     setShowQuestionInput(true);
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Text is required for follow-up questions, image is optional
     if (question.trim()) {
-      onAskQuestion(question.trim());
-      setQuestion('');
+      onAskQuestion(
+        question.trim(),
+        imageData || undefined,
+        fileName || undefined
+      );
+      setQuestion("");
+      removeImage();
       setShowQuestionInput(false);
     }
   };
-  
+
   const handleCancel = () => {
-    setQuestion('');
+    setQuestion("");
+    removeImage();
+    clearError();
     setShowQuestionInput(false);
   };
-  
+
   if (showQuestionInput) {
     return (
-      <div className={`bg-slate-800 border border-slate-600 rounded-lg p-4 ${className}`}>
+      <div
+        className={`bg-slate-800 border border-slate-600 rounded-lg p-4 ${className}`}
+      >
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div>
+          <div className="relative">
             <label className="text-slate-300 text-sm mb-2 block font-medium">
               What are you confused about?
             </label>
+
+            {/* Drag and drop zone overlay */}
+            {isDragging && (
+              <div className="absolute inset-0 top-8 bg-purple-500/20 border-2 border-purple-500 border-dashed rounded-lg flex items-center justify-center z-10 pointer-events-none">
+                <p className="text-purple-300 font-semibold text-sm">
+                  Drop image here
+                </p>
+              </div>
+            )}
+
             <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               placeholder="e.g., 'How does energy transfer between objects?', 'Why is this important?', 'Can you explain this more deeply?'"
-              className="w-full px-3 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              className={`w-full px-3 py-2.5 bg-slate-700 border rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none transition-all ${
+                isDragging
+                  ? "border-purple-500 border-dashed"
+                  : "border-slate-600"
+              }`}
               rows={3}
               autoFocus
             />
           </div>
-          
+
+          {/* File input button */}
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded transition-colors flex items-center gap-1.5"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Attach Image
+            </button>
+            <p className="text-xs text-slate-500">Optional</p>
+          </div>
+
+          {/* Image preview */}
+          {imagePreview && fileName && (
+            <ImagePreview
+              imagePreview={imagePreview}
+              fileName={fileName}
+              onRemove={removeImage}
+            />
+          )}
+
+          {/* Error message */}
+          {imageError && (
+            <div className="p-2 bg-red-900/20 border border-red-500/50 rounded text-xs text-red-400">
+              {imageError}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               type="submit"
@@ -77,15 +174,16 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
               Cancel
             </button>
           </div>
-          
+
           <p className="text-xs text-slate-400 italic">
-            AI will analyze your question and create 1-5 videos based on complexity.
+            AI will analyze your question and create 1-5 videos based on
+            complexity.
           </p>
         </form>
       </div>
     );
   }
-  
+
   return (
     <button
       onClick={handleClick}
@@ -110,4 +208,3 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
     </button>
   );
 };
-

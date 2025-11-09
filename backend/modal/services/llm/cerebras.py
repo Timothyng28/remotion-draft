@@ -67,6 +67,7 @@ class CerebrasService(LLMService):
                 **kwargs) -> LLMResponse:
         """
         Generate response using Cerebras API.
+        Note: Cerebras doesn't support vision. Images are included as base64 text in the prompt.
         """
         max_tokens = max_tokens or self.default_max_tokens
         temperature = temperature or self.default_temperature
@@ -76,16 +77,43 @@ class CerebrasService(LLMService):
         cerebras_messages = []
 
         for msg in messages:
-            if msg.role == "system":
-                # Cerebras requires system prompts as strings in messages
-                cerebras_messages.append({
-                    "role": "system",
-                    "content": msg.content
-                })
-            else:
+            # Handle both text-only and multimodal content
+            if isinstance(msg.content, str):
+                # Simple text message (backward compatible)
                 cerebras_messages.append({
                     "role": msg.role,
                     "content": msg.content
+                })
+            else:
+                # Multimodal content blocks (text + images)
+                # Cerebras doesn't support vision, so convert to text-only
+                text_parts = []
+                has_images = False
+                
+                for block in msg.content:
+                    if block.get("type") == "text":
+                        text_parts.append(block.get("text", ""))
+                    elif block.get("type") == "image":
+                        has_images = True
+                        # Extract base64 data from image block
+                        source = block.get("source", {})
+                        image_data = source.get("data", "")
+                        media_type = source.get("media_type", "image/unknown")
+                        
+                        # Truncate base64 data for logging (just include a marker)
+                        truncated_data = image_data[:100] + "..." if len(image_data) > 100 else image_data
+                        text_parts.append(
+                            f"\n[IMAGE PROVIDED - {media_type} - base64 data: {truncated_data}]\n"
+                        )
+                
+                combined_content = " ".join(text_parts)
+                
+                if has_images:
+                    print(f"⚠️  Cerebras doesn't support vision. Image provided as base64 text marker.")
+                
+                cerebras_messages.append({
+                    "role": msg.role,
+                    "content": combined_content
                 })
 
         try:
@@ -161,16 +189,41 @@ class CerebrasService(LLMService):
                        system_prompt: Optional[str] = None,
                        max_tokens: Optional[int] = None,
                        temperature: Optional[float] = None,
+                       image_data: Optional[str] = None,
                        **kwargs) -> str:
         """
         Simple text generation using Cerebras.
+        Optionally supports image context via image_data parameter.
+        Note: Cerebras doesn't support vision, so images are included as base64 text.
+        
+        Args:
+            prompt: Text prompt
+            system_prompt: Optional system prompt
+            max_tokens: Max tokens to generate
+            temperature: Sampling temperature
+            image_data: Optional base64-encoded image (included as text marker)
+            **kwargs: Additional parameters
+        
+        Returns:
+            Generated text content
         """
         messages = []
 
         if system_prompt:
             messages.append(LLMMessage(role="system", content=system_prompt))
 
-        messages.append(LLMMessage(role="user", content=prompt))
+        # Create user message with optional image
+        if image_data:
+            from .base import create_image_content_block, create_text_content_block
+            
+            # Build multimodal content blocks (will be converted to text in generate())
+            content_blocks = [create_text_content_block(prompt)]
+            content_blocks.append(create_image_content_block(image_data))
+            
+            messages.append(LLMMessage(role="user", content=content_blocks))
+        else:
+            # Simple text-only message
+            messages.append(LLMMessage(role="user", content=prompt))
 
         response = self.generate(
             messages=messages,
@@ -204,16 +257,41 @@ class CerebrasService(LLMService):
                                    system_prompt: Optional[str] = None,
                                    max_tokens: Optional[int] = None,
                                    temperature: Optional[float] = None,
+                                   image_data: Optional[str] = None,
                                    **kwargs) -> str:
         """
         Async version of generate_simple() for parallel API calls.
+        Optionally supports image context via image_data parameter.
+        Note: Cerebras doesn't support vision, so images are included as base64 text.
+        
+        Args:
+            prompt: Text prompt
+            system_prompt: Optional system prompt
+            max_tokens: Max tokens to generate
+            temperature: Sampling temperature
+            image_data: Optional base64-encoded image (included as text marker)
+            **kwargs: Additional parameters
+        
+        Returns:
+            Generated text content
         """
         messages = []
 
         if system_prompt:
             messages.append(LLMMessage(role="system", content=system_prompt))
 
-        messages.append(LLMMessage(role="user", content=prompt))
+        # Create user message with optional image
+        if image_data:
+            from .base import create_image_content_block, create_text_content_block
+            
+            # Build multimodal content blocks (will be converted to text in generate())
+            content_blocks = [create_text_content_block(prompt)]
+            content_blocks.append(create_image_content_block(image_data))
+            
+            messages.append(LLMMessage(role="user", content=content_blocks))
+        else:
+            # Simple text-only message
+            messages.append(LLMMessage(role="user", content=prompt))
 
         response = await self.generate_async(
             messages=messages,

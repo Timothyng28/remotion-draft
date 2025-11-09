@@ -38,6 +38,7 @@ Usage:
         "topic": "Your topic here",
         "job_id": "optional-job-id",
         "image_context": "optional-base64-image",
+        "image_filename": "optional-image-filename",
         "clerk_user_id": "optional-clerk-id"
     }
 """
@@ -107,13 +108,13 @@ from dev.config import (
     RENDER_MEMORY,
     RENDER_SECRETS,
 )
+from dev.description_logic import generate_description_logic
+from dev.embedding_api_logic import embed_batch_logic, embed_text_logic
 from dev.generator_logic import generate_educational_video_logic
 from dev.reflection_logic import (
     generate_closing_question_logic,
     generate_reflection_questions_logic,
 )
-from dev.description_logic import generate_description_logic
-from dev.embedding_api_logic import embed_text_logic, embed_batch_logic
 
 # Import pure Python logic functions (now available in image)
 from dev.renderer import render_single_scene_logic
@@ -157,6 +158,7 @@ def generate_educational_video(
     prompt: str,
     job_id: Optional[str] = None,
     image_context: Optional[str] = None,
+    image_filename: Optional[str] = None,
     clerk_user_id: Optional[str] = None,
     mode: str = "deep",
     voice_id: Optional[str] = None
@@ -169,6 +171,7 @@ def generate_educational_video(
         prompt: Topic/description for the video
         job_id: Optional job ID for tracking
         image_context: Optional base64-encoded image for visual context
+        image_filename: Optional image filename for cache key generation
         clerk_user_id: Optional Clerk user ID for user association
         mode: Generation mode - "deep" (Anthropic Sonnet) or "fast" (Cerebras Qwen)
         voice_id: Optional ElevenLabs voice ID for text-to-speech
@@ -178,6 +181,7 @@ def generate_educational_video(
         prompt=prompt,
         job_id=job_id,
         image_context=image_context,
+        image_filename=image_filename,
         clerk_user_id=clerk_user_id,
         render_single_scene_fn=render_single_scene,
         mode=mode,

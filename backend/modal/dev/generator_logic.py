@@ -58,6 +58,7 @@ def generate_educational_video_logic(
     prompt: str,
     job_id: Optional[str] = None,
     image_context: Optional[str] = None,
+    image_filename: Optional[str] = None,
     clerk_user_id: Optional[str] = None,
     render_single_scene_fn: Optional[Callable] = None,
     mode: str = "deep",
@@ -70,6 +71,7 @@ def generate_educational_video_logic(
         prompt: Topic/description for the video
         job_id: Optional job ID for tracking
         image_context: Optional base64-encoded image to provide visual context
+        image_filename: Optional image filename for cache key generation
         clerk_user_id: Optional Clerk user ID to associate video with user account
         render_single_scene_fn: Modal function reference for rendering scenes
         mode: Generation mode - "deep" (slower, higher quality) or "fast" (faster, good quality)
@@ -133,21 +135,26 @@ def generate_educational_video_logic(
         print(f"✓ {plan_provider} {plan_model} service initialized\n")
         capture_log(f"{plan_provider} {plan_model} service initialized for plan generation")
 
-        # Code generation service based on mode (STAGE 2)
-        if mode == "deep":
-            # Deep mode: Anthropic Sonnet 4.5 (slower, higher quality)
+        # Code generation service selection (STAGE 2)
+        # RULE: Use Anthropic Sonnet 4.5 if image is provided (vision support required)
+        #       Use Cerebras for text-only (faster, cheaper)
+        # Note: mode parameter is ignored, selection based on image presence
+        if image_context:
+            # Image provided: MUST use Anthropic Sonnet 4.5 for vision API support
             code_provider = "anthropic"
             code_model = "claude-sonnet-4-5-20250929"
+            print(f"🖼️  Image context detected - using Anthropic Sonnet 4.5 (vision support)")
         else:
-            # Fast mode: Cerebras Qwen 3 (faster, good quality)
+            # Text-only: Use Cerebras Qwen 3 (faster, cheaper)
             code_provider = "cerebras"
             code_model = "qwen-3-235b-a22b-instruct-2507"
+            print(f"📝 Text-only input - using Cerebras Qwen 3 (fast, cost-effective)")
 
         print(f"🔧 Initializing {code_provider} {code_model} service for code generation...")
-        print(f"   Mode: {mode.upper()} - {'Premium quality' if mode == 'deep' else 'Fast generation'}")
+        print(f"   Selection: {'Vision-enabled (image provided)' if image_context else 'Text-only (no image)'}")
         code_llm_service = create_llm_service(provider=code_provider, model=code_model)
         print(f"✓ {code_provider} {code_model} service initialized\n")
-        capture_log(f"{code_provider} {code_model} service initialized for code generation (mode: {mode})")
+        capture_log(f"{code_provider} {code_model} service initialized for code generation (image: {bool(image_context)})")
 
         # ALWAYS initialize Sonnet 4.5 for repairs (even in fast mode)
         repair_provider = "anthropic"
@@ -176,23 +183,29 @@ def generate_educational_video_logic(
         # Call Cerebras for plan generation
         plan_prompt = f"{MEGA_PLAN_PROMPT}\n\nTopic: {prompt}"
 
-        # Add image context if provided
+        # Add image context note if provided
         if image_context:
             plan_prompt += "\n\nIMPORTANT: An image has been provided as visual context. Reference this image when planning the video structure and visual approach. Use the image to inform what concepts to explain and how to visualize them."
             print(f"🖼️  Image context provided - will be included in plan generation")
-            print(f"⚠️  Note: Cerebras may not support multimodal images. Image context will be described in text.")
+            print(f"   Provider: {plan_provider}")
+            if plan_provider == "anthropic":
+                print(f"   ✓ Anthropic supports vision - image will be sent as multimodal content")
+            else:
+                print(f"   ⚠️  {plan_provider} doesn't support vision - image will be included as base64 text marker")
 
         print(f"🤖 Calling {plan_provider} {plan_model} for plan generation...")
         print(f"   Model: {plan_model}")
         print(f"   Temperature: {TEMP}")
         print(f"   Max tokens: {MAX_TOKENS}")
 
-        # Note: Cerebras may not support multimodal images like Anthropic
-        # For now, we'll use text-only generation even when image_context is provided
+        # Call LLM with image support
+        # Both Anthropic and Cerebras services now support image_data parameter
+        # Anthropic will use vision API, Cerebras will include as text marker
         plan_response = plan_llm_service.generate_simple(
             prompt=plan_prompt,
             max_tokens=MAX_TOKENS,
-            temperature=TEMP
+            temperature=TEMP,
+            image_data=image_context  # Pass image data to LLM service
         )
 
         # Parse the JSON plan
@@ -390,18 +403,20 @@ Use ElevenLabsService for voiceover generation."""
                 # Add image context note if provided
                 if image_context:
                     user_prompt += "\n\nNOTE: An image was provided as context for this video. When creating visual demonstrations, consider referencing elements or concepts visible in that image."
+                    print(f"   🖼️  Image context will be included in code generation")
 
                 print(f"🤖 [Section {section_num} V{variant_num}] Calling {code_provider} {code_model}...")
 
                 # Use slightly higher temperature for variants to get diversity
                 temp = TEMP if variant_num == 1 else TEMP + 0.1
                 
-                # Text-only API call using llm service with system prompt
+                # API call using llm service with system prompt and optional image
                 manim_code = await code_llm_service.generate_simple_async(
                     prompt=user_prompt,
                     system_prompt=system_prompt,
                     max_tokens=MAX_TOKENS,
-                    temperature=temp
+                    temperature=temp,
+                    image_data=image_context  # Pass image data to LLM service
                 )
 
                 print(f"🔍 [Section {section_num} V{variant_num}] Extracting code from response...")
@@ -1232,36 +1247,60 @@ Return ONLY the title text, nothing else."""
             }
         }
 
-        # Store cache (skip if image_context is provided, as it affects generation)
-        if not image_context:
-            try:
-                from services.cache_service import get_cache_service
-                cache_service = get_cache_service()
-                
-                # Build cache data structure
-                cache_data = {
-                    "job_id": job_id,
-                    "final_video_url": final_video_url,
-                    "sections": section_urls,
-                    "section_details": section_details,
-                    "metadata": {
-                        "prompt": prompt,
-                        "file_size_mb": round(final_size, 2),
-                        "num_sections": len(section_urls),
-                        "voiceover_scripts": [
-                            {
-                                "section": section_num,
-                                "script": section_scripts.get(section_num, "")
-                            }
-                            for section_num in sorted(section_scripts.keys())
-                        ]
-                    }
+        # Store cache
+        # Generate cache key using same logic as frontend and API:
+        # - Text only → cache key = text (prompt)
+        # - Image only → cache key = filename
+        # - Text + Image → cache key = text + filename
+        try:
+            from services.cache_service import get_cache_service
+            cache_service = get_cache_service()
+            
+            # Calculate cache key
+            has_text = prompt and prompt.strip() and prompt != "Explain this image"
+            has_image = bool(image_context)
+            is_image_only = has_image and not has_text
+            
+            cache_key = prompt
+            if is_image_only and image_filename:
+                cache_key = image_filename
+            elif has_text and has_image and image_filename:
+                cache_key = f"{prompt}__{image_filename}"
+            
+            # Build cache data structure
+            cache_data = {
+                "job_id": job_id,
+                "final_video_url": final_video_url,
+                "sections": section_urls,
+                "section_details": section_details,
+                "metadata": {
+                    "prompt": prompt,
+                    "file_size_mb": round(final_size, 2),
+                    "num_sections": len(section_urls),
+                    "has_image": bool(image_context),
+                    "image_filename": image_filename,
+                    "voiceover_scripts": [
+                        {
+                            "section": section_num,
+                            "script": section_scripts.get(section_num, "")
+                        }
+                        for section_num in sorted(section_scripts.keys())
+                    ]
                 }
-                
-                cache_service.store_cache(prompt, cache_data)
-            except Exception as e:
-                # Cache storage failed, but this is non-fatal
-                print(f"⚠️  Cache storage error (non-fatal): {type(e).__name__}: {e}")
+            }
+            
+            cache_service.store_cache(cache_key, cache_data, voice_id)
+            
+            # Log cache storage
+            cache_type = ""
+            if is_image_only:
+                cache_type = f" [Image-only: {image_filename}]"
+            elif has_text and has_image:
+                cache_type = f" [Text+Image: {prompt} + {image_filename}]"
+            print(f"✓ Cached result with key: {cache_key}{cache_type}")
+        except Exception as e:
+            # Cache storage failed, but this is non-fatal
+            print(f"⚠️  Cache storage error (non-fatal): {type(e).__name__}: {e}")
 
         yield update_job_progress(response_data)
 

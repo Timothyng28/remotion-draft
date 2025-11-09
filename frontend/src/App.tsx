@@ -18,17 +18,24 @@ import { QuizQuestionOverlay } from "./components/QuizQuestionOverlay";
 import { TreeExplorer } from "./components/TreeExplorer";
 import { TreeVisualizer } from "./components/TreeVisualizer";
 import { VideoController } from "./controllers/VideoController";
-import { loadCachedSession, hasCachedSession } from "./services/cachedSessionService";
+import {
+  hasCachedSession,
+  loadCachedSession,
+} from "./services/cachedSessionService";
 import { generateClosingQuestion } from "./services/llmService";
 import {
+  clearVideoSession,
   getAllNodes,
   getChildren,
   getNextNode,
   getPreviousNode,
   loadVideoSession,
-  clearVideoSession,
 } from "./types/TreeState";
-import { ClosingQuestionPayload, VideoSession, createVideoSession } from "./types/VideoConfig";
+import {
+  ClosingQuestionPayload,
+  VideoSession,
+  createVideoSession,
+} from "./types/VideoConfig";
 
 /**
  * App state types
@@ -43,7 +50,7 @@ export const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>("landing");
   const [currentTopic, setCurrentTopic] = useState<string>("");
   const [error, setError] = useState<string>("");
-  
+
   // Cached session from localStorage
   const [cachedSession, setCachedSession] = useState<VideoSession | null>(null);
 
@@ -74,10 +81,18 @@ export const App: React.FC = () => {
   // Leaf question state
   const [leafQuestion, setLeafQuestion] = useState<string | null>(null);
   const [leafQuestionStatus, setLeafQuestionStatus] = useState<
-    "idle" | "loading" | "ready" | "evaluating" | "correct" | "incorrect" | "error" | "generating_followup"
+    | "idle"
+    | "loading"
+    | "ready"
+    | "evaluating"
+    | "correct"
+    | "incorrect"
+    | "error"
+    | "generating_followup"
   >("idle");
   const [leafQuestionAnswer, setLeafQuestionAnswer] = useState<string>("");
-  const [leafEvaluationReasoning, setLeafEvaluationReasoning] = useState<string>("");
+  const [leafEvaluationReasoning, setLeafEvaluationReasoning] =
+    useState<string>("");
 
   const resetLeafQuestionState = useCallback(() => {
     setLeafQuestion(null);
@@ -109,27 +124,33 @@ export const App: React.FC = () => {
   useEffect(() => {
     const cached = loadVideoSession();
     if (cached) {
-      console.log('Loaded cached session from localStorage');
-      console.log('Cached tree has', cached.tree.nodes.size, 'nodes');
-      console.log('Saved current node ID:', cached.tree.currentNodeId);
-      
+      console.log("Loaded cached session from localStorage");
+      console.log("Cached tree has", cached.tree.nodes.size, "nodes");
+      console.log("Saved current node ID:", cached.tree.currentNodeId);
+
       // Validate the saved currentNodeId - only reset if it's invalid
-      const isValidNode = cached.tree.currentNodeId && 
-                         cached.tree.nodes.has(cached.tree.currentNodeId);
-      
+      const isValidNode =
+        cached.tree.currentNodeId &&
+        cached.tree.nodes.has(cached.tree.currentNodeId);
+
       if (!isValidNode) {
         // Only reset to first root if currentNodeId is empty or invalid
         if (cached.tree.rootIds.length > 0) {
-          console.log('Invalid or missing currentNodeId, resetting to first root');
+          console.log(
+            "Invalid or missing currentNodeId, resetting to first root"
+          );
           cached.tree.currentNodeId = cached.tree.rootIds[0];
         } else {
-          console.error('No root nodes found in cached tree!');
+          console.error("No root nodes found in cached tree!");
           return; // Don't load corrupted session
         }
       } else {
-        console.log('Restoring user to saved position:', cached.tree.currentNodeId);
+        console.log(
+          "Restoring user to saved position:",
+          cached.tree.currentNodeId
+        );
       }
-      
+
       setCachedSession(cached);
       setCurrentTopic(cached.context.initialTopic || "Cached Session");
       setAppState("learning");
@@ -140,40 +161,79 @@ export const App: React.FC = () => {
    * Handle topic submission from landing page
    * Tries to load cached session first, then falls back to generating new session
    */
-  const handleTopicSubmit = async (topic: string, voiceId?: string) => {
+  const handleTopicSubmit = async (
+    topic: string,
+    voiceId?: string,
+    imageData?: string,
+    imageFileName?: string
+  ) => {
     resetClosingQuestionState();
     resetLeafQuestionState();
     setHasSeenFirstVideo(false); // Reset video tracking for new session
 
-    // Try to load cached session for this topic
-    if (hasCachedSession(topic)) {
-      console.log("Attempting to load cached session for:", topic);
-      const cached = await loadCachedSession(topic);
-      
+    // Determine cache key and final topic
+    // Cache key strategy:
+    // - Text only → cache key = text
+    // - Image only → cache key = filename
+    // - Text + Image → cache key = text + filename (both affect result)
+    const hasText = topic.trim().length > 0;
+    const hasImage = !!imageData;
+    const isImageOnly = hasImage && !hasText;
+
+    // Generate cache key
+    let cacheKey = topic;
+    if (isImageOnly && imageFileName) {
+      // Image only: use filename as cache key
+      cacheKey = imageFileName;
+    } else if (hasText && hasImage && imageFileName) {
+      // Text + Image: combine both for cache key
+      cacheKey = `${topic}__${imageFileName}`;
+    }
+
+    // Set final topic for display (and for backend prompt if image-only)
+    const finalTopic = hasText
+      ? topic
+      : isImageOnly
+      ? "Explain this image"
+      : topic;
+
+    // Try to load from cache using the generated cache key
+    if (hasCachedSession(cacheKey)) {
+      console.log("Attempting to load cached session for:", cacheKey);
+      if (hasImage && hasText) {
+        console.log("  (Text + Image combo - cached by both)");
+      } else if (isImageOnly) {
+        console.log("  (Image-only - cached by filename)");
+      }
+
+      const cached = await loadCachedSession(cacheKey);
+
       if (cached) {
-        console.log("✅ Successfully loaded cached session for:", topic);
+        console.log("✅ Successfully loaded cached session for:", cacheKey);
         setCachedSession(cached);
-        setCurrentTopic(topic);
+        setCurrentTopic(finalTopic);
         setIsTestMode(false);
         setAppState("learning");
         setError("");
         return; // Successfully loaded cached session, skip generation
       } else {
-        console.warn("Failed to load cached session, falling back to generation");
+        console.warn(
+          "Failed to load cached session, falling back to generation"
+        );
       }
     }
 
     // No cached session available or failed to load - generate fresh
     clearVideoSession(); // Clear localStorage to force fresh generation
-    
-    // Create a new session with the voice ID
-    const newSession = createVideoSession(topic);
+
+    // Create a new session with the final topic
+    const newSession = createVideoSession(finalTopic);
     if (voiceId) {
       newSession.context.voiceId = voiceId;
     }
-    
+
     setCachedSession(newSession);
-    setCurrentTopic(topic);
+    setCurrentTopic(finalTopic);
     setIsTestMode(false); // Normal mode
     setAppState("learning");
     setError("");
@@ -434,9 +494,13 @@ export const App: React.FC = () => {
 
               // Check if this is a leaf node AND not already a question node
               // Also ensure we've actually played the video (not just mounted on a leaf node)
-              if (isLastSegment && !currentSegment.isQuestionNode && hasSeenFirstVideo) {
+              if (
+                isLastSegment &&
+                !currentSegment.isQuestionNode &&
+                hasSeenFirstVideo
+              ) {
                 // Leaf video detected - create question node
-                console.log('Leaf video ended, creating question node');
+                console.log("Leaf video ended, creating question node");
                 createQuestionNode(session.tree.currentNodeId);
               } else if (isAutoPlayEnabled && !currentSegment.isQuestionNode) {
                 // Auto-advance to next node (only for video nodes, not question nodes)
@@ -528,20 +592,36 @@ export const App: React.FC = () => {
                 setHasSeenFirstVideo(true);
               }
             }, [currentSegment?.id, currentSegment?.isQuestionNode]);
-            
+
             useEffect(() => {
-              if (currentSegment?.isQuestionNode && leafQuestionStatus === "idle" && hasSeenFirstVideo && !isGeneratingFollowUp) {
+              if (
+                currentSegment?.isQuestionNode &&
+                leafQuestionStatus === "idle" &&
+                hasSeenFirstVideo &&
+                !isGeneratingFollowUp
+              ) {
                 // Extract the question from the segment
                 if (currentSegment.questionText) {
                   setLeafQuestion(currentSegment.questionText);
                   setLeafQuestionStatus("ready");
                   console.log("Auto-opening leaf question overlay");
                 }
-              } else if (!currentSegment?.isQuestionNode && leafQuestionStatus !== "idle") {
+              } else if (
+                !currentSegment?.isQuestionNode &&
+                leafQuestionStatus !== "idle"
+              ) {
                 // Reset state when leaving question node
                 resetLeafQuestionState();
               }
-            }, [currentSegment?.id, currentSegment?.isQuestionNode, currentSegment?.questionText, leafQuestionStatus, resetLeafQuestionState, hasSeenFirstVideo, isGeneratingFollowUp]);
+            }, [
+              currentSegment?.id,
+              currentSegment?.isQuestionNode,
+              currentSegment?.questionText,
+              leafQuestionStatus,
+              resetLeafQuestionState,
+              hasSeenFirstVideo,
+              isGeneratingFollowUp,
+            ]);
 
             // NOW we can do conditional returns
 
@@ -582,7 +662,7 @@ export const App: React.FC = () => {
                 {/* Quiz Question Overlay */}
                 <QuizQuestionOverlay
                   isOpen={showQuiz}
-                  question={quizQuestion || ''}
+                  question={quizQuestion || ""}
                   isLoading={isGeneratingQuiz}
                   isEvaluating={isEvaluating}
                   error={videoError || undefined}
@@ -595,7 +675,7 @@ export const App: React.FC = () => {
 
                 {/* Leaf Question Overlay */}
                 <LeafQuestionOverlay
-                  isOpen={leafQuestionStatus !== 'idle'}
+                  isOpen={leafQuestionStatus !== "idle"}
                   question={leafQuestion || undefined}
                   status={leafQuestionStatus}
                   answer={leafQuestionAnswer}
@@ -604,27 +684,30 @@ export const App: React.FC = () => {
                   onAnswerChange={setLeafQuestionAnswer}
                   onSubmit={async (ans) => {
                     if (!leafQuestion) return;
-                    setLeafQuestionStatus('evaluating');
-                    const result = await handleLeafQuestionAnswer(leafQuestion, ans);
+                    setLeafQuestionStatus("evaluating");
+                    const result = await handleLeafQuestionAnswer(
+                      leafQuestion,
+                      ans
+                    );
                     if (result.success) {
                       if (result.correct) {
-                        setLeafQuestionStatus('correct');
-                        setLeafEvaluationReasoning(result.reasoning || '');
+                        setLeafQuestionStatus("correct");
+                        setLeafEvaluationReasoning(result.reasoning || "");
                       } else {
-                        setLeafQuestionStatus('incorrect');
-                        setLeafEvaluationReasoning(result.reasoning || '');
+                        setLeafQuestionStatus("incorrect");
+                        setLeafEvaluationReasoning(result.reasoning || "");
                       }
                     } else {
-                      setLeafQuestionStatus('error');
+                      setLeafQuestionStatus("error");
                     }
                   }}
                   onContinueLearning={async (wasCorrect) => {
                     // Set flag to prevent duplicate question overlay
                     setIsGeneratingFollowUp(true);
-                    
+
                     // Show loading state in overlay instead of closing
-                    setLeafQuestionStatus('generating_followup');
-                    
+                    setLeafQuestionStatus("generating_followup");
+
                     try {
                       // Generate follow-up videos based on answer correctness
                       // Pass full context: question, answer, and evaluation reasoning
@@ -634,13 +717,16 @@ export const App: React.FC = () => {
                         leafQuestionAnswer || undefined,
                         leafEvaluationReasoning || undefined
                       );
-                      
+
                       // After successful generation, close overlay
                       resetLeafQuestionState();
                     } catch (error) {
-                      console.error('Error generating follow-up videos:', error);
+                      console.error(
+                        "Error generating follow-up videos:",
+                        error
+                      );
                       // On error, show error state
-                      setLeafQuestionStatus('error');
+                      setLeafQuestionStatus("error");
                     } finally {
                       // Always reset flag
                       setIsGeneratingFollowUp(false);
@@ -650,15 +736,18 @@ export const App: React.FC = () => {
                     resetLeafQuestionState();
                     // If on question node, try to navigate to next or show message
                     if (currentSegment?.isQuestionNode) {
-                      const nextNode = getNextNode(session.tree, session.tree.currentNodeId);
+                      const nextNode = getNextNode(
+                        session.tree,
+                        session.tree.currentNodeId
+                      );
                       if (nextNode) {
                         navigateToNode(nextNode.id);
                       }
                     }
                   }}
                   onRetry={() => {
-                    setLeafQuestionStatus('ready');
-                    setLeafQuestionAnswer('');
+                    setLeafQuestionStatus("ready");
+                    setLeafQuestionAnswer("");
                   }}
                   onStartOver={handleReset}
                 />
@@ -692,7 +781,9 @@ export const App: React.FC = () => {
 
                   {/* Topic Display */}
                   <div className="px-4 py-3 border-b border-slate-700">
-                    <div className="text-xs text-slate-400 mb-1">Currently Learning</div>
+                    <div className="text-xs text-slate-400 mb-1">
+                      Currently Learning
+                    </div>
                     <div className="font-semibold text-blue-400 text-sm">
                       {currentSegment.topic}
                     </div>
@@ -725,174 +816,193 @@ export const App: React.FC = () => {
                 <div className="flex-1 flex flex-col items-center justify-center relative p-4">
                   {/* Video Player Container with Navigation */}
                   <div className="flex items-center gap-4 mb-4">
-                  {/* Previous Button */}
-                  <button
-                    onClick={() => {
-                      const prevNode = getPreviousNode(
-                        session.tree,
-                        session.tree.currentNodeId
-                      );
-                      if (prevNode) {
-                        navigateToNode(prevNode.id);
-                      }
-                    }}
-                    disabled={
-                      !getPreviousNode(session.tree, session.tree.currentNodeId)
-                    }
-                    className={`p-3 rounded-full transition-all ${
-                      getPreviousNode(session.tree, session.tree.currentNodeId)
-                        ? "bg-slate-700/80 hover:bg-slate-600 text-white cursor-pointer"
-                        : "bg-slate-800/40 text-slate-600 cursor-not-allowed"
-                    }`}
-                    title="Previous video"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  {/* Video Player */}
-                  <div
-                    className="relative shadow-2xl rounded-lg overflow-hidden bg-black"
-                    style={{ width: "calc(100vw - 400px)", maxWidth: "1280px" }}
-                  >
-                    {currentSegment.isQuestionNode ? (
-                      <div
-                        className="flex items-center justify-center bg-gradient-to-br from-yellow-900/30 to-slate-900"
-                        style={{ width: "100%", height: "450px" }}
-                      >
-                        <div className="text-center text-white px-8">
-                          <div className="text-6xl mb-4">❓</div>
-                          <div className="text-2xl mb-2 font-semibold text-yellow-400">
-                            Knowledge Check
-                          </div>
-                          <div className="text-lg text-slate-300">
-                            Answer the question below to continue your learning journey
-                          </div>
-                        </div>
-                      </div>
-                    ) : currentSegment.videoUrl ? (
-                      <video
-                        key={segmentKey}
-                        ref={videoRef}
-                        src={currentSegment.videoUrl}
-                        controls
-                        autoPlay
-                        className="w-full h-auto"
-                        style={{
-                          maxHeight: "80vh",
-                        }}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    ) : currentSegment.renderingStatus === "rendering" ||
-                      currentSegment.renderingStatus === "pending" ? (
-                      <div
-                        className="flex items-center justify-center"
-                        style={{ width: "100%", height: "450px" }}
-                      >
-                        <div className="text-center text-white">
-                          <LoadingSpinner />
-                          <div className="mt-4 text-lg">Rendering video...</div>
-                          <div className="mt-2 text-sm text-slate-400">
-                            This may take a minute
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        className="flex items-center justify-center"
-                        style={{ width: "100%", height: "450px" }}
-                      >
-                        <div className="text-center text-white">
-                          <div className="text-lg mb-2">
-                            Video not available
-                          </div>
-                          <div className="text-sm text-slate-400">
-                            Rendering status:{" "}
-                            {currentSegment.renderingStatus || "unknown"}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Auto-play Toggle Overlay */}
-                    <div className="absolute top-4 right-4 bg-slate-800/90 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 text-sm z-10">
-                      <span className="text-slate-300">Auto-play</span>
-                      <button
-                        onClick={() => setIsAutoPlayEnabled(!isAutoPlayEnabled)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          isAutoPlayEnabled ? "bg-blue-600" : "bg-slate-600"
-                        }`}
-                        title={
-                          isAutoPlayEnabled
-                            ? "Disable auto-play"
-                            : "Enable auto-play"
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => {
+                        const prevNode = getPreviousNode(
+                          session.tree,
+                          session.tree.currentNodeId
+                        );
+                        if (prevNode) {
+                          navigateToNode(prevNode.id);
                         }
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            isAutoPlayEnabled
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Next Button */}
-                  <button
-                    onClick={() => {
-                      const nextNode = getNextNode(
-                        session.tree,
-                        session.tree.currentNodeId
-                      );
-                      if (nextNode) {
-                        navigateToNode(nextNode.id);
+                      }}
+                      disabled={
+                        !getPreviousNode(
+                          session.tree,
+                          session.tree.currentNodeId
+                        )
                       }
-                    }}
-                    disabled={
-                      !getNextNode(session.tree, session.tree.currentNodeId)
-                    }
-                    className={`p-3 rounded-full transition-all ${
-                      getNextNode(session.tree, session.tree.currentNodeId)
-                        ? "bg-slate-700/80 hover:bg-slate-600 text-white cursor-pointer"
-                        : "bg-slate-800/40 text-slate-600 cursor-not-allowed"
-                    }`}
-                    title="Next video"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      className={`p-3 rounded-full transition-all ${
+                        getPreviousNode(
+                          session.tree,
+                          session.tree.currentNodeId
+                        )
+                          ? "bg-slate-700/80 hover:bg-slate-600 text-white cursor-pointer"
+                          : "bg-slate-800/40 text-slate-600 cursor-not-allowed"
+                      }`}
+                      title="Previous video"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-8 w-8"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {/* Video Player */}
+                    <div
+                      className="relative shadow-2xl rounded-lg overflow-hidden bg-black"
+                      style={{
+                        width: "calc(100vw - 400px)",
+                        maxWidth: "1280px",
+                      }}
+                    >
+                      {currentSegment.isQuestionNode ? (
+                        <div
+                          className="flex items-center justify-center bg-gradient-to-br from-yellow-900/30 to-slate-900"
+                          style={{ width: "100%", height: "450px" }}
+                        >
+                          <div className="text-center text-white px-8">
+                            <div className="text-6xl mb-4">❓</div>
+                            <div className="text-2xl mb-2 font-semibold text-yellow-400">
+                              Knowledge Check
+                            </div>
+                            <div className="text-lg text-slate-300">
+                              Answer the question below to continue your
+                              learning journey
+                            </div>
+                          </div>
+                        </div>
+                      ) : currentSegment.videoUrl ? (
+                        <video
+                          key={segmentKey}
+                          ref={videoRef}
+                          src={currentSegment.videoUrl}
+                          controls
+                          autoPlay
+                          className="w-full h-auto"
+                          style={{
+                            maxHeight: "80vh",
+                          }}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      ) : currentSegment.renderingStatus === "rendering" ||
+                        currentSegment.renderingStatus === "pending" ? (
+                        <div
+                          className="flex items-center justify-center"
+                          style={{ width: "100%", height: "450px" }}
+                        >
+                          <div className="text-center text-white">
+                            <LoadingSpinner />
+                            <div className="mt-4 text-lg">
+                              Rendering video...
+                            </div>
+                            <div className="mt-2 text-sm text-slate-400">
+                              This may take a minute
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className="flex items-center justify-center"
+                          style={{ width: "100%", height: "450px" }}
+                        >
+                          <div className="text-center text-white">
+                            <div className="text-lg mb-2">
+                              Video not available
+                            </div>
+                            <div className="text-sm text-slate-400">
+                              Rendering status:{" "}
+                              {currentSegment.renderingStatus || "unknown"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Auto-play Toggle Overlay */}
+                      <div className="absolute top-4 right-4 bg-slate-800/90 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 text-sm z-10">
+                        <span className="text-slate-300">Auto-play</span>
+                        <button
+                          onClick={() =>
+                            setIsAutoPlayEnabled(!isAutoPlayEnabled)
+                          }
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            isAutoPlayEnabled ? "bg-blue-600" : "bg-slate-600"
+                          }`}
+                          title={
+                            isAutoPlayEnabled
+                              ? "Disable auto-play"
+                              : "Enable auto-play"
+                          }
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              isAutoPlayEnabled
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => {
+                        const nextNode = getNextNode(
+                          session.tree,
+                          session.tree.currentNodeId
+                        );
+                        if (nextNode) {
+                          navigateToNode(nextNode.id);
+                        }
+                      }}
+                      disabled={
+                        !getNextNode(session.tree, session.tree.currentNodeId)
+                      }
+                      className={`p-3 rounded-full transition-all ${
+                        getNextNode(session.tree, session.tree.currentNodeId)
+                          ? "bg-slate-700/80 hover:bg-slate-600 text-white cursor-pointer"
+                          : "bg-slate-800/40 text-slate-600 cursor-not-allowed"
+                      }`}
+                      title="Next video"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-8 w-8"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
 
                   {/* Tree Visualizer - horizontal minimap below video */}
                   {session.tree.nodes.size > 0 && (
-                    <div style={{ width: 'calc(100vw - 400px)', maxWidth: '1280px' }}>
+                    <div
+                      style={{
+                        width: "calc(100vw - 400px)",
+                        maxWidth: "1280px",
+                      }}
+                    >
                       <TreeVisualizer
                         tree={session.tree}
                         onExpandClick={() => setShowTreeExplorer(true)}

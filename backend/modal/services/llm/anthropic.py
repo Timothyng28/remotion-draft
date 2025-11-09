@@ -66,6 +66,7 @@ class AnthropicClaudeService(LLMService):
                 **kwargs) -> LLMResponse:
         """
         Generate response using Anthropic Claude API.
+        Supports both text-only and multimodal (text + images) messages.
         """
         max_tokens = max_tokens or self.default_max_tokens
         temperature = temperature or self.default_temperature
@@ -76,12 +77,27 @@ class AnthropicClaudeService(LLMService):
 
         for msg in messages:
             if msg.role == "system":
-                system_prompt = msg.content
+                # System messages should always be text-only
+                if isinstance(msg.content, list):
+                    # Extract text from content blocks if it's a list
+                    text_parts = [block.get("text", "") for block in msg.content if block.get("type") == "text"]
+                    system_prompt = " ".join(text_parts)
+                else:
+                    system_prompt = msg.content
             else:
-                anthropic_messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
+                # For user/assistant messages, support both text and multimodal
+                if isinstance(msg.content, str):
+                    # Simple text message (backward compatible)
+                    anthropic_messages.append({
+                        "role": msg.role,
+                        "content": msg.content
+                    })
+                else:
+                    # Multimodal message with content blocks (text + images)
+                    anthropic_messages.append({
+                        "role": msg.role,
+                        "content": msg.content  # Already in correct format
+                    })
 
         try:
             # Prepare API call parameters
@@ -133,16 +149,40 @@ class AnthropicClaudeService(LLMService):
                        system_prompt: Optional[str] = None,
                        max_tokens: Optional[int] = None,
                        temperature: Optional[float] = None,
+                       image_data: Optional[str] = None,
                        **kwargs) -> str:
         """
         Simple text generation using Claude.
+        Optionally supports image context via image_data parameter.
+        
+        Args:
+            prompt: Text prompt
+            system_prompt: Optional system prompt
+            max_tokens: Max tokens to generate
+            temperature: Sampling temperature
+            image_data: Optional base64-encoded image (with or without data URI prefix)
+            **kwargs: Additional parameters
+        
+        Returns:
+            Generated text content
         """
         messages = []
 
         if system_prompt:
             messages.append(LLMMessage(role="system", content=system_prompt))
 
-        messages.append(LLMMessage(role="user", content=prompt))
+        # Create user message with optional image
+        if image_data:
+            from .base import create_image_content_block, create_text_content_block
+            
+            # Build multimodal content blocks
+            content_blocks = [create_text_content_block(prompt)]
+            content_blocks.append(create_image_content_block(image_data))
+            
+            messages.append(LLMMessage(role="user", content=content_blocks))
+        else:
+            # Simple text-only message
+            messages.append(LLMMessage(role="user", content=prompt))
 
         response = self.generate(
             messages=messages,
@@ -160,6 +200,7 @@ class AnthropicClaudeService(LLMService):
                             **kwargs) -> LLMResponse:
         """
         Async version of generate() for parallel API calls.
+        Supports both text-only and multimodal (text + images) messages.
         """
         max_tokens = max_tokens or self.default_max_tokens
         temperature = temperature or self.default_temperature
@@ -170,12 +211,27 @@ class AnthropicClaudeService(LLMService):
 
         for msg in messages:
             if msg.role == "system":
-                system_prompt = msg.content
+                # System messages should always be text-only
+                if isinstance(msg.content, list):
+                    # Extract text from content blocks if it's a list
+                    text_parts = [block.get("text", "") for block in msg.content if block.get("type") == "text"]
+                    system_prompt = " ".join(text_parts)
+                else:
+                    system_prompt = msg.content
             else:
-                anthropic_messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
+                # For user/assistant messages, support both text and multimodal
+                if isinstance(msg.content, str):
+                    # Simple text message (backward compatible)
+                    anthropic_messages.append({
+                        "role": msg.role,
+                        "content": msg.content
+                    })
+                else:
+                    # Multimodal message with content blocks (text + images)
+                    anthropic_messages.append({
+                        "role": msg.role,
+                        "content": msg.content  # Already in correct format
+                    })
 
         try:
             # Prepare API call parameters
@@ -222,16 +278,40 @@ class AnthropicClaudeService(LLMService):
                                    system_prompt: Optional[str] = None,
                                    max_tokens: Optional[int] = None,
                                    temperature: Optional[float] = None,
+                                   image_data: Optional[str] = None,
                                    **kwargs) -> str:
         """
         Async version of generate_simple() for parallel API calls.
+        Optionally supports image context via image_data parameter.
+        
+        Args:
+            prompt: Text prompt
+            system_prompt: Optional system prompt
+            max_tokens: Max tokens to generate
+            temperature: Sampling temperature
+            image_data: Optional base64-encoded image (with or without data URI prefix)
+            **kwargs: Additional parameters
+        
+        Returns:
+            Generated text content
         """
         messages = []
 
         if system_prompt:
             messages.append(LLMMessage(role="system", content=system_prompt))
 
-        messages.append(LLMMessage(role="user", content=prompt))
+        # Create user message with optional image
+        if image_data:
+            from .base import create_image_content_block, create_text_content_block
+            
+            # Build multimodal content blocks
+            content_blocks = [create_text_content_block(prompt)]
+            content_blocks.append(create_image_content_block(image_data))
+            
+            messages.append(LLMMessage(role="user", content=content_blocks))
+        else:
+            # Simple text-only message
+            messages.append(LLMMessage(role="user", content=prompt))
 
         response = await self.generate_async(
             messages=messages,
