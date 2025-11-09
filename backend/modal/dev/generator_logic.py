@@ -126,9 +126,23 @@ def generate_educational_video_logic(
         # Initialize LLM services
         from services.llm import create_llm_service
 
-        # Cerebras Qwen-3 for plan generation (STAGE 1)
-        plan_provider = "cerebras"
-        plan_model = "qwen-3-235b-a22b-instruct-2507"
+        # Planning model selection (STAGE 1)
+        plan_provider_env = os.getenv("PLANNING_LLM_PROVIDER", "cerebras").lower()
+        valid_planning_providers = {"cerebras", "xai"}
+
+        if plan_provider_env not in valid_planning_providers:
+            print(
+                f"⚠️  Unknown planning provider '{plan_provider_env}'. "
+                "Defaulting to Cerebras Qwen for planning."
+            )
+            plan_provider = "cerebras"
+        else:
+            plan_provider = plan_provider_env
+
+        if plan_provider == "xai":
+            plan_model = "grok-4-fast-reasoning"
+        else:
+            plan_model = "qwen-3-235b-a22b-instruct-2507"
 
         print(f"🔧 Initializing {plan_provider} {plan_model} service for plan generation...")
         plan_llm_service = create_llm_service(provider=plan_provider, model=plan_model)

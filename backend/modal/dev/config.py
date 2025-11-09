@@ -26,6 +26,7 @@ RENDER_SECRETS = [
     "anthropic-key",  # For code repair
     "elevenlabs-key",  # For TTS
     "cerebras-key",  # For Cerebras LLM
+    "xai-key",  # For xAI Grok LLM
     "gcp-credentials",  # For GCS uploads (contains GCP_SERVICE_ACCOUNT_JSON)
     "google-api-key",  # For Gemini embeddings
     "embedding-provider",  # Optional override for embedding provider
@@ -35,6 +36,7 @@ MAIN_SECRETS = [
     "anthropic-key",
     "elevenlabs-key",
     "cerebras-key",  # For Cerebras LLM
+    "xai-key",  # For xAI Grok LLM
     "gcp-credentials",  # For GCS uploads (contains GCP_SERVICE_ACCOUNT_JSON)
     "google-api-key",  # For Gemini embeddings
     "embedding-provider",  # Optional override for embedding provider

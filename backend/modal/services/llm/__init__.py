@@ -7,6 +7,7 @@ Provides a unified interface for different LLM providers
 from .anthropic import AnthropicClaudeService
 from .base import LLMMessage, LLMResponse, LLMService, LLMServiceError
 from .cerebras import CerebrasService
+from .xai import XAIService
 from .factory import (
     SUPPORTED_PROVIDERS,
     create_llm_service,
@@ -24,5 +25,6 @@ __all__ = [
     'create_llm_service',
     'get_available_providers',
     'get_default_model',
-    'SUPPORTED_PROVIDERS'
+    'SUPPORTED_PROVIDERS',
+    'XAIService'
 ]

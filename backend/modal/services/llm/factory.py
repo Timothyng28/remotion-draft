@@ -9,11 +9,13 @@ from typing import Any, Dict, Optional
 from .anthropic import AnthropicClaudeService
 from .base import LLMService, LLMServiceError
 from .cerebras import CerebrasService
+from .xai import XAIService
 
 # Supported providers
 SUPPORTED_PROVIDERS = {
     "anthropic": AnthropicClaudeService,
     "cerebras": CerebrasService,
+    "xai": XAIService,
 }
 
 
@@ -27,7 +29,7 @@ def create_llm_service(
     Factory function to create an LLM service instance.
 
     Args:
-        provider: Provider name ("anthropic" or "cerebras"). 
+        provider: Provider name ("anthropic", "cerebras", or "xai").
                   If None, uses LLM_PROVIDER env var or defaults to "anthropic"
         model: Model name. If None, uses provider defaults:
                - anthropic: "claude-sonnet-4-5-20250929"
@@ -73,6 +75,8 @@ def create_llm_service(
             model = "claude-sonnet-4-5-20250929"
         elif provider == "cerebras":
             model = "llama-3.3-70b"
+        elif provider == "xai":
+            model = "grok-4-fast-reasoning"
 
     # Create service instance
     try:
@@ -93,7 +97,8 @@ def get_available_providers() -> Dict[str, str]:
     """
     return {
         "anthropic": "Anthropic Claude (claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001)",
-        "cerebras": "Cerebras (llama-3.3-70b, gpt-oss-120b, qwen-3-32b, etc.)"
+        "cerebras": "Cerebras (llama-3.3-70b, gpt-oss-120b, qwen-3-32b, etc.)",
+        "xai": "xAI Grok (grok-4-fast-reasoning, grok-vision-beta)",
     }
 
 
@@ -109,7 +114,8 @@ def get_default_model(provider: str) -> str:
     """
     defaults = {
         "anthropic": "claude-sonnet-4-5-20250929",
-        "cerebras": "llama-3.3-70b"
+        "cerebras": "llama-3.3-70b",
+        "xai": "grok-4-fast-reasoning",
     }
     return defaults.get(provider.lower(), "")
 
