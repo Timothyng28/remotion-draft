@@ -86,7 +86,7 @@ def generate_educational_video_logic(
     from pathlib import Path
 
     sys.path.insert(0, '/root')
-    from services.prompts import MANIM_META_PROMPT, MEGA_PLAN_PROMPT
+    from services.prompts import MEGA_PLAN_PROMPT
 
     # Configuration
     job_id = job_id or str(uuid.uuid4())
@@ -327,9 +327,10 @@ def generate_educational_video_logic(
             transcription_model=None
         )
 
-        # Create audio directory
-        audio_dir = work_dir / "audio"
+        # Create audio directory - use 'voiceovers' to match manim_voiceover's expectations
+        audio_dir = work_dir / "voiceovers"
         audio_dir.mkdir(exist_ok=True)
+        print(f"📁 Audio directory: {audio_dir}")
 
         async def generate_section_audio(section_info):
             """Generate audio for a single section."""
@@ -355,7 +356,18 @@ def generate_educational_video_logic(
                 )
                 
                 audio_path = audio_result.get('audio_path', '')
-                print(f"✅ [Audio {section_num}] Audio generated: {Path(audio_path).name}")
+                if audio_path:
+                    audio_file = Path(audio_path)
+                    if audio_file.exists():
+                        file_size = audio_file.stat().st_size / 1024  # KB
+                        print(f"✅ [Audio {section_num}] Audio generated and saved: {audio_file.name} ({file_size:.2f} KB)")
+                        print(f"   Full path: {audio_path}")
+                    else:
+                        print(f"⚠️  [Audio {section_num}] Audio path returned but file doesn't exist: {audio_path}")
+                        return (section_num, None, narration_text, f"Audio file not found at {audio_path}")
+                else:
+                    print(f"⚠️  [Audio {section_num}] No audio_path in result: {audio_result.keys()}")
+                    return (section_num, None, narration_text, "No audio_path in generation result")
                 
                 return (section_num, audio_path, narration_text, None)
                 
@@ -393,6 +405,20 @@ def generate_educational_video_logic(
 
         print(f"\n✓ Audio generation complete: {successful_audio} / {len(video_structure)} sections")
         print(f"   Audio files saved in: {audio_dir}")
+        
+        # Verify all audio files exist
+        print(f"\n🔍 Verifying audio files exist...")
+        for section_num in audio_map:
+            if audio_map[section_num]:
+                audio_path = audio_map[section_num]['audio_path']
+                audio_file = Path(audio_path)
+                if audio_file.exists():
+                    file_size = audio_file.stat().st_size / 1024  # KB
+                    print(f"   ✓ Section {section_num}: {audio_file.name} ({file_size:.2f} KB)")
+                else:
+                    print(f"   ❌ Section {section_num}: File NOT FOUND at {audio_path}")
+                    # Remove from map so we fall back to TTS
+                    audio_map[section_num] = None
 
         yield update_job_progress({
             "status": "processing",
@@ -440,45 +466,58 @@ def generate_educational_video_logic(
                     audio_path = audio_info['audio_path']
                     narration_text = audio_info['narration_text']
                     
-                    print(f"🎤 [Section {section_num} V{variant_num}] Using pre-generated audio: {Path(audio_path).name}")
-                    
-                    audio_instruction = f"""
+                    # Check if audio file actually exists before using PreGeneratedAudioService
+                    audio_file = Path(audio_path)
+                    if audio_file.exists():
+                        print(f"🎤 [Section {section_num} V{variant_num}] Using pre-generated audio: {audio_file.name}")
+                        
+                        audio_instruction = f"""
 
 IMPORTANT - PRE-GENERATED AUDIO:
 Audio has been pre-generated for this section. You MUST use it as follows:
 
-1. DO NOT initialize ElevenLabsService or any TTS service
-2. DO NOT use self.set_speech_service()
-3. Instead, use the audio file directly with add_voiceover():
+1. Use VoiceoverScene (NOT Scene)
+2. Import PreGeneratedAudioService from services.tts.pregenerated
+3. Initialize the service with the pre-generated audio file path
+4. Use self.voiceover() blocks as normal - the service will load the pre-generated audio
 
-from manim_voiceover.helper import create_voiceover_tracker
-from pathlib import Path
+Example code structure:
 
-class YourScene(Scene):  # Use Scene, not VoiceoverScene
+from manim import *
+from manim_voiceover import VoiceoverScene
+from services.tts.pregenerated import PreGeneratedAudioService
+
+class YourScene(VoiceoverScene):
     def construct(self):
-        # Load pre-generated audio
-        audio_path = Path("/outputs/{job_id}/audio/section_{section_num}.mp3")
+        # Initialize with pre-generated audio file
+        audio_path = "/outputs/{job_id}/voiceovers/section_{section_num}.mp3"
+        self.set_speech_service(PreGeneratedAudioService(audio_file_path=audio_path, fallback_to_elevenlabs=True))
         
-        # Add voiceover tracker
-        tracker = create_voiceover_tracker(self, audio_path)
-        
-        # Use tracker to sync animations with audio
-        with tracker.voiceover(text="{narration_text[:100]}...") as voiceover:
+        # Use voiceover blocks as normal - audio is already generated
+        with self.voiceover(text="{narration_text[:100]}...") as tracker:
             # Your animations here
+            # Use tracker.duration for timing
             pass
 
 The narration text for this section is:
 "{narration_text}"
 
-Use this exact text in the voiceover tracker for proper synchronization.
+Use this exact text in the self.voiceover() calls for proper synchronization.
 """
+                    else:
+                        print(f"⚠️  [Section {section_num} V{variant_num}] Pre-generated audio file not found: {audio_path}")
+                        print(f"⚠️  [Section {section_num} V{variant_num}] Falling back to TTS during rendering")
+                        audio_instruction = "\n\nNote: Pre-generated audio was not available. Generate voiceover using ElevenLabsService as usual."
                 else:
                     print(f"⚠️  [Section {section_num} V{variant_num}] No pre-generated audio, will use TTS during rendering")
                     audio_instruction = "\n\nNote: Generate voiceover using ElevenLabsService as usual."
 
-                section_prompt = f"""{MANIM_META_PROMPT}
-
-Topic: {prompt}
+                # Prepare system prompt (Manim guidelines and requirements)
+                from services.prompts import get_manim_prompt
+                system_prompt = get_manim_prompt()
+                
+                # Prepare user prompt (section-specific information)
+                user_prompt = f"""Topic: {prompt}
 Section: {section['section']} (Duration: {section['duration']})
 Content: {section['content']}
 
@@ -487,16 +526,17 @@ Generate a SINGLE scene for this section only. The scene should be self-containe
 
                 # Add image context note if provided
                 if image_context:
-                    section_prompt += "\n\nNOTE: An image was provided as context for this video. When creating visual demonstrations, consider referencing elements or concepts visible in that image."
+                    user_prompt += "\n\nNOTE: An image was provided as context for this video. When creating visual demonstrations, consider referencing elements or concepts visible in that image."
 
                 print(f"🤖 [Section {section_num} V{variant_num}] Calling {code_provider} {code_model}...")
 
                 # Use slightly higher temperature for variants to get diversity
                 temp = TEMP if variant_num == 1 else TEMP + 0.1
                 
-                # Text-only API call using llm service
+                # Text-only API call using llm service with system prompt
                 manim_code = await code_llm_service.generate_simple_async(
-                    prompt=section_prompt,
+                    prompt=user_prompt,
+                    system_prompt=system_prompt,
                     max_tokens=MAX_TOKENS,
                     temperature=temp
                 )
@@ -563,11 +603,20 @@ Generate a SINGLE scene for this section only. The scene should be self-containe
                         future = executor.submit(render_call.get, 900)  # 15 min timeout
                         result = await asyncio.get_event_loop().run_in_executor(None, future.result)
                     
-                    result_section_num, video_path, error = result
+                    # Handle both 3-tuple (old format) and 4-tuple (new format with GCS upload status)
+                    if len(result) == 4:
+                        result_section_num, video_path, error, gcs_upload_success = result
+                    else:
+                        result_section_num, video_path, error = result
+                        gcs_upload_success = False  # Default to False for old format
                     
                     if video_path and not error:
-                        print(f"✅ [Section {section_num} V{variant_num}] Render succeeded!")
-                        return (True, video_path, None)
+                        # Success if GCS upload succeeded OR if we have a local file
+                        if gcs_upload_success:
+                            print(f"✅ [Section {section_num} V{variant_num}] Render succeeded and uploaded to GCS!")
+                        else:
+                            print(f"✅ [Section {section_num} V{variant_num}] Render succeeded (GCS upload status unknown)")
+                        return (True, video_path, None, gcs_upload_success)
                     else:
                         print(f"❌ [Section {section_num} V{variant_num}] Render failed: {error}")
                         # Continue to next variant
@@ -618,15 +667,44 @@ AFTER RULE-BASED FIXES:
 ERROR CONTEXT:
 The code failed during rendering. Common issues include:
 - Incorrect parameter names or values
-- Missing imports
+- Missing imports (especially PreGeneratedAudioService should be from services.tts.pregenerated, NOT manim_voiceover.services.tts)
 - Syntax errors
 - Invalid Manim API usage
+- VGroup containing non-VMobject types (Mobject, Sphere, Cube, etc.) - MUST use Group() instead
+- add_tip() called with invalid parameters (width, length) - add_tip() takes NO parameters
+- opacity= parameter in Mobject constructors - Mobject.__init__() does NOT accept opacity parameter
+- RecorderService causing EOFError (use ElevenLabsService instead)
+
+CRITICAL FIXES REQUIRED:
+1. **VGroup Error**: If you see "VGroup can only contain VMobject types" or "Got Mobject instead":
+   - Find ALL VGroup() calls that contain non-VMobject types
+   - Replace VGroup() with Group() for ANY mixed types or when unsure
+   - Common non-VMobjects: Mobject base class, Sphere, Cube, Prism, Cone, Cylinder, any 3D objects
+   - When in doubt, ALWAYS use Group() instead of VGroup()
+
+2. **add_tip() Error**: If you see "add_tip() got an unexpected keyword argument":
+   - Find ALL calls to .add_tip() with parameters like width= or length=
+   - Replace `arrow.add_tip(width=0.2, length=0.2)` with `arrow.add_tip()` (no parameters)
+   - Replace `arrow.add_tip(length=0.3)` with `arrow.add_tip()` (no parameters)
+   - If custom tip size is needed, use Arrow constructor: `Arrow(start, end, tip_length=0.3)` instead
+
+3. **Opacity Error**: If you see "Mobject.__init__() got an unexpected keyword argument 'opacity'":
+   - Find ALL Mobject constructors with opacity= parameter (Circle, Square, Line, Arrow, etc.)
+   - Replace `Circle(opacity=0.5)` with `Circle().set_opacity(0.5)` (create object first, then set opacity)
+   - Replace `Line(opacity=0.8)` with `Line().set_stroke_opacity(0.8)` or `Line().set_opacity(0.8)`
+   - Replace `Square(opacity=0.6)` with `Square().set_opacity(0.6)`
+   - ALWAYS use `.set_opacity()`, `.set_fill_opacity()`, or `.set_stroke_opacity()` AFTER object creation
 
 Please generate a corrected version that:
 1. Fixes all syntax and runtime errors
 2. Uses only valid Manim parameters and methods
-3. Maintains the original intent and structure
-4. Returns ONLY the Python code without explanations
+3. Replaces ALL VGroup() calls with Group() when containing non-VMobject types (Mobject, Sphere, Cube, etc.)
+4. Removes ALL invalid parameters from add_tip() calls (use add_tip() with no parameters)
+5. Removes ALL opacity= parameters from Mobject constructors (use .set_opacity() method AFTER creation)
+6. Ensures PreGeneratedAudioService is imported from services.tts.pregenerated (NOT manim_voiceover.services.tts)
+7. Never uses RecorderService - always use ElevenLabsService with transcription_model=None
+8. Maintains the original intent and structure
+9. Returns ONLY the Python code without explanations
 
 Generate the fixed code now:"""
 
@@ -669,10 +747,10 @@ Generate the fixed code now:"""
                     return await try_render_with_fallback(section_num, fixed_variants, fix_attempt + 1)
                 else:
                     print(f"❌ [Section {section_num}] No variants could be fixed")
-                    return (False, None, "All variants and fix attempts failed")
+                    return (False, None, "All variants and fix attempts failed", False)
             else:
                 print(f"❌ [Section {section_num}] Max fix attempts (3) reached")
-                return (False, None, f"All {len(code_variants)} variants failed after 3 fix attempts")
+                return (False, None, f"All {len(code_variants)} variants failed after 3 fix attempts", False)
 
         async def process_section_with_variants(section_info):
             """
@@ -708,23 +786,23 @@ Generate the fixed code now:"""
                 
                 if not code_variants:
                     print(f"❌ [Section {section_num}] All 3 variants failed to generate")
-                    return (section_num, None, "All code generation attempts failed")
+                    return (section_num, None, "All code generation attempts failed", False)
                 
                 print(f"✓ [Section {section_num}] Generated {len(code_variants)}/3 variants successfully")
                 
                 # Try rendering with fallback logic
-                success, video_path, error = await try_render_with_fallback(section_num, code_variants, fix_attempt=0)
+                success, video_path, error, gcs_upload_success = await try_render_with_fallback(section_num, code_variants, fix_attempt=0)
                 
                 if success:
-                    return (section_num, video_path, None)
+                    return (section_num, video_path, None, gcs_upload_success)
                 else:
-                    return (section_num, None, error)
+                    return (section_num, None, error, False)
                     
             except Exception as e:
                 print(f"❌ [Section {section_num}] Fatal error: {type(e).__name__}: {e}")
                 import traceback
                 print(traceback.format_exc())
-                return (section_num, None, str(e))
+                return (section_num, None, str(e), False)
 
         # Process all sections in parallel
         async def process_all_sections():
@@ -745,17 +823,34 @@ Generate the fixed code now:"""
         print(f"✓ Volume reloaded")
 
         # Process results from Modal containers
+        # Track sections based on GCS upload success (more reliable than file existence)
         scene_videos = []
-        successful_sections = []
-        for section_num, video_path, error in render_results:
-            if video_path and not error:
+        successful_sections = []  # Sections with successful GCS uploads
+        
+        for section_num, video_path, error, gcs_upload_success in render_results:
+            if gcs_upload_success:
+                # GCS upload succeeded - this is the reliable indicator of success
+                successful_sections.append(section_num)
+                
+                # Try to find local file for concatenation (optional)
+                if video_path:
+                    video_file = Path(video_path)
+                    if video_file.exists():
+                        scene_videos.append((section_num, video_file))
+                        print(f"✓ Section {section_num} video found locally: {video_file.name}")
+                    else:
+                        print(f"✓ Section {section_num} uploaded to GCS successfully (local file not found, will skip concatenation)")
+                else:
+                    print(f"✓ Section {section_num} uploaded to GCS successfully (no local path)")
+            elif video_path and not error:
+                # Render succeeded but GCS upload failed - still try to use local file
                 video_file = Path(video_path)
                 if video_file.exists():
                     scene_videos.append((section_num, video_file))
                     successful_sections.append(section_num)
-                    print(f"✓ Section {section_num} video found: {video_file.name}")
+                    print(f"⚠️  Section {section_num} rendered but GCS upload failed - using local file")
                 else:
-                    print(f"⚠️  Section {section_num} video path returned but file doesn't exist: {video_path}")
+                    print(f"⚠️  Section {section_num} rendered but GCS upload failed and local file not found")
             else:
                 print(f"⚠️  Section {section_num} failed: {error}")
 
@@ -848,12 +943,13 @@ Return ONLY the title text, nothing else."""
                 "voiceover_script": section_scripts.get(section_num, "")
             })
 
-        print(f"\n✓ Rendering complete: {len(scene_videos)} / {len(video_structure)} sections succeeded")
+        print(f"\n✓ Rendering complete: {len(successful_sections)} / {len(video_structure)} sections uploaded to GCS")
+        print(f"   ({len(scene_videos)} sections available locally for concatenation)")
 
         yield update_job_progress({
             "status": "processing",
             "progress_percentage": 75,
-            "message": f"Rendered {len(scene_videos)} sections successfully",
+            "message": f"Rendered {len(successful_sections)} sections successfully (uploaded to GCS)",
             "job_id": job_id
         })
 
@@ -949,8 +1045,11 @@ Return ONLY the title text, nothing else."""
             print(f"❌ {error_msg}")
             capture_log(error_msg, level="error")
             # Log details of each failed render
-            for section_num, video_path, error in render_results:
-                capture_log(f"Section {section_num} failed: {error}", level="error")
+            for section_num, video_path, error, gcs_upload_success in render_results:
+                if error:
+                    capture_log(f"Section {section_num} failed: {error}", level="error")
+                elif not gcs_upload_success:
+                    capture_log(f"Section {section_num} rendered but GCS upload failed", level="error")
             raise Exception("No videos were successfully rendered")
 
         yield update_job_progress({

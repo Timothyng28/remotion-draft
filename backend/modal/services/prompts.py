@@ -160,7 +160,7 @@ class ExplainerScene(Scene):
 - Mathematical text: MathTex(r"\\formula"), Tex()
 - Regular text: Text("description", font_size=28)
 - Animations: Create(), Write(), FadeIn(), FadeOut(), Transform(), Shift(), Rotate(), Scale()
-- Grouping: VGroup(), Group()
+- Grouping: VGroup() for VMobjects only, Group() for mixed types
 - Positioning: .to_edge(), .to_corner(), .next_to(), .shift()
 - Colors: BLUE, RED, GREEN, YELLOW, WHITE, PURPLE, ORANGE
 - Wait times: self.wait(seconds)
@@ -179,10 +179,40 @@ class ExplainerScene(Scene):
 ❌ **NEVER USE**: `ThreeDAxes()` unless you inherit from ThreeDScene
 ❌ **NEVER USE**: `GTTSService()` - Use ElevenLabsTimedService() ONLY
 ❌ **NEVER USE**: `KokoroService()` or any other TTS service
+❌ **NEVER USE**: `RecorderService()` - It requires additional packages and causes EOFError prompts
 ✅ **CORRECT**: For standard Scene class, use only 2D elements: Axes(), NumberPlane(), .shift(), .move_to()
 ✅ **CORRECT**: For 3D, you MUST inherit from ThreeDScene: `class MyScene(ThreeDScene):`
 ✅ **CORRECT**: For audio, ALWAYS use: `self.set_speech_service(ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4"))`
 ❌ **NEVER USE**: transcription_model parameter - it requires additional packages and causes errors
+✅ **CORRECT**: For pre-generated audio, use: `from services.tts.pregenerated import PreGeneratedAudioService` (NOT from manim_voiceover.services.tts)
+
+## CRITICAL - VGroup Usage Rules (MANDATORY):
+❌ **NEVER USE**: `VGroup()` with non-VMobject types (Sphere, Cube, Prism, Cone, Cylinder, Mobject base class, or any 3D objects)
+❌ **NEVER USE**: `VGroup()` when you're unsure if all objects are VMobjects
+✅ **CORRECT**: Use `Group()` for mixed object types or when unsure
+✅ **CORRECT**: `VGroup()` can ONLY contain VMobject types (Circle, Square, Text, MathTex, Arrow, Line, Dot, etc.)
+❌ **WRONG**: `VGroup(Sphere(), Circle())` - Sphere is not a VMobject
+❌ **WRONG**: `VGroup(Mobject(), Text())` - Mobject base class is not a VMobject
+✅ **CORRECT**: `Group(Sphere(), Circle())` - Group accepts any Mobject type
+✅ **CORRECT**: `Group(Mobject(), Text())` - Group accepts mixed types
+✅ **SAFE DEFAULT**: When in doubt, ALWAYS use `Group()` instead of `VGroup()` - it's safer and works with all types
+
+## CRITICAL - Arrow and Tip Methods (MANDATORY):
+❌ **NEVER USE**: `arrow.add_tip(width=0.2, length=0.2)` - add_tip() does NOT accept width or length parameters
+❌ **NEVER USE**: `arrow.add_tip(length=0.3)` - length parameter does NOT exist
+✅ **CORRECT**: `arrow.add_tip()` - No parameters needed, uses default tip size
+✅ **CORRECT**: `Arrow(start, end)` - Creates arrow with tip automatically
+✅ **CORRECT**: `Arrow(start, end, tip_length=0.25)` - Use tip_length in Arrow constructor if you need custom tip size
+✅ **CORRECT**: For custom tip size, create Arrow with tip_length parameter: `Arrow(start_point, end_point, tip_length=0.3)`
+
+## CRITICAL - Opacity Parameter (MANDATORY):
+❌ **NEVER USE**: `opacity=` parameter in Mobject constructors (Circle, Square, Line, Arrow, etc.) - Mobject.__init__() does NOT accept opacity parameter
+❌ **NEVER USE**: `Circle(opacity=0.5)` - opacity parameter causes TypeError
+❌ **NEVER USE**: `Line(opacity=0.8)` - opacity parameter causes TypeError
+✅ **CORRECT**: Use `.set_opacity()` method AFTER creating the object: `circle = Circle(); circle.set_opacity(0.5)`
+✅ **CORRECT**: Use `.set_fill_opacity()` for fill opacity: `circle.set_fill_opacity(0.5)`
+✅ **CORRECT**: Use `.set_stroke_opacity()` for stroke opacity: `line.set_stroke_opacity(0.8)`
+✅ **CORRECT**: For Text/MathTex, use color with alpha: `Text("text", color=BLUE).set_opacity(0.7)` AFTER creation
 
 ## Example Topics and Approaches (KEEP VIDEOS SHORT):
 

@@ -124,7 +124,20 @@ def render_single_scene_logic(
                 if result.stderr:
                     stderr_lower = result.stderr.lower()
                     if 'eoferror' in stderr_lower or 'eof when reading a line' in stderr_lower:
-                        error_summary.append("EOFError: Interactive prompt failed (likely transcription package issue)")
+                        if 'recorderservice' in stderr_lower or 'recorder' in stderr_lower:
+                            error_summary.append("EOFError: RecorderService requires additional packages and causes interactive prompts. Use ElevenLabsService instead.")
+                        else:
+                            error_summary.append("EOFError: Interactive prompt failed (likely transcription package issue)")
+                    if 'importerror' in stderr_lower and 'create_voiceover_tracker' in stderr_lower:
+                        error_summary.append("ImportError: create_voiceover_tracker doesn't exist in manim_voiceover (incorrect API usage)")
+                    if 'importerror' in stderr_lower and 'manim_voiceover.services.tts' in stderr_lower:
+                        error_summary.append("ImportError: PreGeneratedAudioService should be imported from services.tts.pregenerated, NOT manim_voiceover.services.tts")
+                    if 'typeerror' in stderr_lower and 'vgroup' in stderr_lower and 'vmobject' in stderr_lower:
+                        error_summary.append("TypeError: VGroup can only contain VMobject types. Use Group() for mixed types or non-VMobjects")
+                    if 'typeerror' in stderr_lower and 'abstract class' in stderr_lower and 'pregeneratedaudioservice' in stderr_lower:
+                        error_summary.append("TypeError: PreGeneratedAudioService missing abstract method. This is a code issue - PreGeneratedAudioService should have generate_from_text method.")
+                    if 'filenotfounderror' in stderr_lower and 'pre-generated audio file' in stderr_lower:
+                        error_summary.append("FileNotFoundError: Pre-generated audio file not found. PreGeneratedAudioService will fall back to ElevenLabsService if fallback_to_elevenlabs=True.")
                     if 'nameerror' in stderr_lower:
                         # Extract the undefined name
                         name_match = __import__('re').search(r"name '(\w+)' is not defined", result.stderr)
@@ -210,7 +223,20 @@ def render_single_scene_logic(
                 if result.stderr:
                     stderr_lower = result.stderr.lower()
                     if 'eoferror' in stderr_lower:
-                        error_analysis += "\n\nCRITICAL: EOFError detected. This happens when manim-voiceover tries to prompt for missing packages. Ensure transcription_model=None is set and never call set_transcription()."
+                        if 'recorderservice' in stderr_lower or 'recorder' in stderr_lower:
+                            error_analysis += "\n\nCRITICAL: EOFError - RecorderService requires additional packages and causes interactive prompts. Replace RecorderService with ElevenLabsService(voice_id=\"pqHfZKP75CvOlQylNhV4\", transcription_model=None)."
+                        else:
+                            error_analysis += "\n\nCRITICAL: EOFError detected. This happens when manim-voiceover tries to prompt for missing packages. Ensure transcription_model=None is set and never call set_transcription()."
+                    if 'importerror' in stderr_lower and 'create_voiceover_tracker' in stderr_lower:
+                        error_analysis += "\n\nCRITICAL: ImportError - create_voiceover_tracker doesn't exist in manim_voiceover. For pre-generated audio, use PreGeneratedAudioService from services.tts.pregenerated instead. Use VoiceoverScene with self.set_speech_service(PreGeneratedAudioService(audio_file_path=path))."
+                    if 'importerror' in stderr_lower and 'manim_voiceover.services.tts' in stderr_lower:
+                        error_analysis += "\n\nCRITICAL: ImportError - PreGeneratedAudioService must be imported from services.tts.pregenerated, NOT from manim_voiceover.services.tts. Fix: from services.tts.pregenerated import PreGeneratedAudioService"
+                    if 'typeerror' in stderr_lower and 'vgroup' in stderr_lower and 'vmobject' in stderr_lower:
+                        error_analysis += "\n\nCRITICAL: TypeError - VGroup can only contain VMobject types. Replace VGroup() with Group() when adding non-VMobject types (like Sphere, Cube, Prism, or base Mobject instances)."
+                    if 'typeerror' in stderr_lower and 'abstract class' in stderr_lower and 'pregeneratedaudioservice' in stderr_lower:
+                        error_analysis += "\n\nCRITICAL: TypeError - PreGeneratedAudioService is missing abstract method generate_from_text. This should not happen - the service implementation needs to be fixed. As a workaround, use ElevenLabsService instead of PreGeneratedAudioService."
+                    if 'filenotfounderror' in stderr_lower and 'pre-generated audio file' in stderr_lower:
+                        error_analysis += "\n\nCRITICAL: FileNotFoundError - Pre-generated audio file not found. Ensure PreGeneratedAudioService is initialized with fallback_to_elevenlabs=True, or use ElevenLabsService directly if audio file doesn't exist."
                     if 'nameerror' in stderr_lower:
                         name_match = __import__('re').search(r"name '(\w+)' is not defined", result.stderr)
                         if name_match:
@@ -240,10 +266,14 @@ ERROR OUTPUT (stderr):
 
 REQUIREMENTS:
 1. Use ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None) - NEVER use transcription_model or set_transcription()
-2. Remove ALL placeholders like {{tts_init}}, {{variable_name}}, etc.
-3. Remove calls to non-existent methods like check_overlap(), bounding_box, etc.
-4. Ensure all classes inherit from VoiceoverScene, not Scene
-5. Do NOT call set_transcription() anywhere
+2. For pre-generated audio, use PreGeneratedAudioService from services.tts.pregenerated (NOT from manim_voiceover.services.tts)
+3. NEVER import create_voiceover_tracker - it doesn't exist in manim_voiceover
+4. NEVER use RecorderService - it causes EOFError prompts. Use ElevenLabsService instead.
+5. Replace VGroup() with Group() when mixing VMobject and non-VMobject types
+6. Remove ALL placeholders like {{tts_init}}, {{variable_name}}, etc.
+7. Remove calls to non-existent methods like check_overlap(), bounding_box, etc.
+8. Ensure all classes inherit from VoiceoverScene, not Scene
+9. Do NOT call set_transcription() anywhere
 
 Return ONLY the fixed Python code."""
 
@@ -349,6 +379,7 @@ Return ONLY the fixed Python code."""
                 print(f"⚠️  [Container {section_num}] Thumbnail generation error (non-fatal): {type(e).__name__}: {e}")
 
             # Upload to GCS (individual sections needed by user)
+            gcs_upload_success = False
             try:
                 from services.gcs_storage import (
                     upload_scene_thumbnail,
@@ -356,6 +387,7 @@ Return ONLY the fixed Python code."""
                 )
                 upload_result = upload_scene_video(str(section_video), job_id, section_num)
                 if upload_result and upload_result.get("success"):
+                    gcs_upload_success = True
                     print(f"✓ [Container {section_num}] Scene video uploaded to GCS: {upload_result.get('public_url')}")
                 else:
                     print(f"⚠️  [Container {section_num}] GCS upload failed: {upload_result.get('error', 'Unknown error') if upload_result else 'No result'}")
@@ -374,7 +406,8 @@ Return ONLY the fixed Python code."""
             # Single volume reload in main function is sufficient
             print(f"✓ [Container {section_num}] Skipping volume commit (optimization enabled)")
 
-            return (section_num, str(section_video), None)
+            # Return section_num, video_path, error_message, gcs_upload_success
+            return (section_num, str(section_video), None, gcs_upload_success)
 
         except subprocess.TimeoutExpired:
             if attempt < MAX_RENDER_ATTEMPTS - 1:
@@ -382,9 +415,9 @@ Return ONLY the fixed Python code."""
                 # Similar repair logic for timeout
                 continue
             else:
-                return (section_num, None, "Timeout after repair attempt")
+                return (section_num, None, "Timeout after repair attempt", False)
         except Exception as e:
             print(f"❌ [Container {section_num}] Error: {type(e).__name__}: {e}")
-            return (section_num, None, str(e))
+            return (section_num, None, str(e), False)
 
-    return (section_num, None, "Failed after all attempts")
+    return (section_num, None, "Failed after all attempts", False)

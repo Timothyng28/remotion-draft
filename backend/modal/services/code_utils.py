@@ -18,6 +18,7 @@ import re
 def remove_transcription_params(code: str) -> str:
     """
     Remove transcription_model and other problematic parameters from ElevenLabsService initialization.
+    Also fix PreGeneratedAudioService to ensure transcription_model=None.
 
     This fixes the common error where manim-voiceover tries to prompt for missing
     transcription packages (whisper, stable_whisper) which aren't needed.
@@ -86,6 +87,22 @@ def remove_transcription_params(code: str) -> str:
     code = re.sub(
         r'from manim_voiceover\.services\.gtts import GTTSService',
         'from manim_voiceover.services.elevenlabs import ElevenLabsService',
+        code
+    )
+
+    # Pattern 7: Fix PreGeneratedAudioService - ensure transcription_model=None is not needed
+    # PreGeneratedAudioService already handles this, but ensure no RecorderService is used
+    # Replace RecorderService with ElevenLabsService
+    code = re.sub(
+        r'RecorderService\([^)]*\)',
+        'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)',
+        code
+    )
+    
+    # Remove RecorderService imports
+    code = re.sub(
+        r'from manim_voiceover\.services\.recorder import RecorderService[^\n]*\n?',
+        '',
         code
     )
 
@@ -294,6 +311,46 @@ def remove_incompatible_methods(code: str) -> str:
     return '\n'.join(filtered_lines)
 
 
+def remove_incorrect_imports(code: str) -> str:
+    """
+    Remove incorrect imports that don't exist in manim_voiceover.
+    Fix import paths for PreGeneratedAudioService.
+    
+    Args:
+        code: Python code string
+        
+    Returns:
+        Code with incorrect imports removed and fixed
+    """
+    lines = code.split('\n')
+    filtered_lines = []
+    
+    for line in lines:
+        # Remove create_voiceover_tracker import (doesn't exist)
+        if 'from manim_voiceover.helper import create_voiceover_tracker' in line:
+            print("⚠️  Removed incorrect import: create_voiceover_tracker (doesn't exist in manim_voiceover)")
+            continue
+        # Remove create_voiceover_tracker usage
+        if 'create_voiceover_tracker' in line:
+            print(f"⚠️  Removed incorrect usage of create_voiceover_tracker: {line.strip()}")
+            continue
+        # Fix incorrect PreGeneratedAudioService import path
+        if 'from manim_voiceover.services.tts.pregenerated import PreGeneratedAudioService' in line:
+            print("⚠️  Fixed PreGeneratedAudioService import path")
+            filtered_lines.append('from services.tts.pregenerated import PreGeneratedAudioService')
+            continue
+        # Fix any other manim_voiceover.services.tts imports
+        if 'from manim_voiceover.services.tts' in line:
+            print(f"⚠️  Fixed incorrect import path: {line.strip()}")
+            # Replace with services.tts path
+            fixed_line = line.replace('from manim_voiceover.services.tts', 'from services.tts')
+            filtered_lines.append(fixed_line)
+            continue
+        filtered_lines.append(line)
+    
+    return '\n'.join(filtered_lines)
+
+
 def remove_placeholders(code: str) -> str:
     """
     Remove code generation placeholders like {tts_init}, {variable_name}, etc.
@@ -355,18 +412,165 @@ def fix_color_constants(code: str) -> str:
 
 def remove_vgroup_with_non_vmobjects(code: str) -> str:
     """
-    Remove or comment out VGroup usage with non-VMobject types like Sphere.
-
+    Fix VGroup usage with non-VMobject types.
+    VGroup can only contain VMobject types. Use Group() for mixed types.
+    
     Args:
         code: Python code string
-
+        
     Returns:
-        Code with problematic VGroup usage removed
+        Code with VGroup issues fixed
     """
-    # This is more relevant for ManimGL 3D objects
-    # For Manim Community, VGroup should work fine with most objects
-    # Keep function for compatibility but don't modify
-    return code
+    import re
+    
+    # Pattern 1: VGroup with non-VMobject types - replace with Group
+    # Look for VGroup(...) patterns that might contain non-VMobjects
+    # Common non-VMobjects: Sphere, Cube, Prism, etc. (3D objects)
+    # Also Mobject base class instances
+    
+    # Replace VGroup with Group when non-VMobject types are detected
+    # This is a conservative fix - we'll replace VGroup with Group in suspicious cases
+    lines = code.split('\n')
+    fixed_lines = []
+    
+    for line in lines:
+        # Check if line contains VGroup and potential non-VMobject types
+        if 'VGroup' in line:
+            # Check for common non-VMobject patterns
+            non_vmobject_patterns = [
+                r'Sphere\(',
+                r'Cube\(',
+                r'Prism\(',
+                r'Cone\(',
+                r'Cylinder\(',
+                r'Mobject\(',
+                r'ThreeDObject\(',
+                r'\bMobject\b',  # Mobject as a class name (not just constructor)
+            ]
+            
+            has_non_vmobject = any(re.search(pattern, line) for pattern in non_vmobject_patterns)
+            
+            if has_non_vmobject:
+                print(f"⚠️  Replaced VGroup with Group (contains non-VMobject): {line.strip()[:80]}")
+                # Replace VGroup with Group
+                fixed_line = line.replace('VGroup', 'Group')
+                fixed_lines.append(fixed_line)
+                continue
+        
+        fixed_lines.append(line)
+    
+    return '\n'.join(fixed_lines)
+
+
+def fix_add_tip_parameters(code: str) -> str:
+    """
+    Fix add_tip() calls with invalid parameters.
+    add_tip() does NOT accept width or length parameters.
+    
+    Args:
+        code: Python code string
+        
+    Returns:
+        Code with add_tip() calls fixed
+    """
+    import re
+    
+    # Pattern 1: Remove width and length parameters from add_tip()
+    # arrow.add_tip(width=0.2, length=0.2) -> arrow.add_tip()
+    # arrow.add_tip(length=0.3) -> arrow.add_tip()
+    # arrow.add_tip(width=0.2) -> arrow.add_tip()
+    
+    lines = code.split('\n')
+    fixed_lines = []
+    
+    for line in lines:
+        if '.add_tip(' in line:
+            # Check if line has invalid parameters
+            if 'width=' in line or 'length=' in line:
+                print(f"⚠️  Removed invalid parameters from add_tip(): {line.strip()[:80]}")
+                # Remove parameters: .add_tip(width=..., length=...) -> .add_tip()
+                # Handle various patterns
+                fixed_line = re.sub(
+                    r'\.add_tip\([^)]*\)',
+                    '.add_tip()',
+                    line
+                )
+                fixed_lines.append(fixed_line)
+                continue
+        
+        fixed_lines.append(line)
+    
+    return '\n'.join(fixed_lines)
+
+
+def fix_opacity_parameters(code: str) -> str:
+    """
+    Fix opacity= parameter usage in Mobject constructors.
+    Mobject.__init__() does NOT accept opacity parameter - must use .set_opacity() method instead.
+    
+    Args:
+        code: Python code string
+        
+    Returns:
+        Code with opacity parameters fixed
+    """
+    import re
+    
+    # Pattern: Find any Mobject constructor with opacity= parameter
+    # Circle(opacity=0.5) -> Circle().set_opacity(0.5)
+    # Line(opacity=0.8, color=BLUE) -> Line(color=BLUE).set_opacity(0.8)
+    # Square(color=BLUE, opacity=0.6) -> Square(color=BLUE).set_opacity(0.6)
+    
+    lines = code.split('\n')
+    fixed_lines = []
+    
+    # Pattern to match: MobjectType(...opacity=value...)
+    # This matches common Mobject constructors followed by parentheses with opacity parameter
+    mobject_constructors = [
+        'Circle', 'Square', 'Rectangle', 'Line', 'Arrow', 'Dot', 'Polygon', 
+        'RegularPolygon', 'Triangle', 'Ellipse', 'Arc', 'Sector', 'Annulus',
+        'Text', 'MathTex', 'Tex', 'Brace', 'Bracket', 'Angle', 'LabeledDot'
+    ]
+    
+    for line in lines:
+        fixed_line = line
+        
+        # Check if line contains opacity= parameter
+        if 'opacity=' in line and '(' in line:
+            # Try to find and fix each mobject constructor pattern
+            for mobject_type in mobject_constructors:
+                # Pattern: mobject_type(...opacity=value...)
+                pattern = rf'({mobject_type})\s*\(([^)]*opacity\s*=\s*([^,)]+)[^)]*)\)'
+                match = re.search(pattern, line)
+                
+                if match:
+                    full_match = match.group(0)
+                    mobject_name = match.group(1)
+                    params = match.group(2)
+                    opacity_value = match.group(3).strip()
+                    
+                    # Remove opacity parameter from params
+                    # Handle both: opacity=value and , opacity=value
+                    params_without_opacity = re.sub(r',\s*opacity\s*=\s*[^,)]+', '', params)
+                    params_without_opacity = re.sub(r'opacity\s*=\s*[^,)]+\s*,?\s*', '', params_without_opacity)
+                    
+                    # Clean up trailing/leading commas and spaces
+                    params_without_opacity = params_without_opacity.strip().rstrip(',').strip()
+                    
+                    # Build replacement: MobjectType(params).set_opacity(value)
+                    if params_without_opacity:
+                        new_constructor = f"{mobject_name}({params_without_opacity})"
+                    else:
+                        new_constructor = f"{mobject_name}()"
+                    
+                    replacement = f"{new_constructor}.set_opacity({opacity_value})"
+                    fixed_line = line.replace(full_match, replacement)
+                    print(f"⚠️  Fixed opacity parameter: {line.strip()[:80]} -> {fixed_line.strip()[:80]}")
+                    break  # Only fix first match per line
+        
+        fixed_lines.append(fixed_line)
+    
+    return '\n'.join(fixed_lines)
 
 
 def add_basic_voiceover_if_missing(code: str) -> str:
@@ -427,12 +631,15 @@ def apply_all_manual_fixes(code: str) -> str:
     print("🔧 Applying manual code fixes...")
 
     # Order matters!
+    code = remove_incorrect_imports(code)  # Remove incorrect imports first
     code = remove_camera_orientation_calls(code)
     code = fix_scene_inheritance(code)
     code = ensure_voiceover_imports(code)
     code = remove_incompatible_methods(code)
     code = fix_color_constants(code)
     code = remove_vgroup_with_non_vmobjects(code)
+    code = fix_add_tip_parameters(code)  # Fix add_tip() invalid parameters
+    code = fix_opacity_parameters(code)  # Fix opacity= parameter in constructors
     code = ensure_speech_service_init(code)
     code = add_basic_voiceover_if_missing(code)
 
