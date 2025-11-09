@@ -305,11 +305,11 @@ def generate_educational_video_logic(
 
         # Initialize TTS service and audio directory for later use
         import asyncio
-
+        
+        # Create TTS service with custom or default voice
         from services.tts import ElevenLabsTimedService
         selected_voice_id = voice_id or "XfNU2rGpBa01ckF309OY"
         print(f"🎙️  Using ElevenLabs voice ID: {selected_voice_id}")
-        
         tts_service = ElevenLabsTimedService(
             voice_id=selected_voice_id,
             transcription_model=None
@@ -349,13 +349,63 @@ def generate_educational_video_logic(
                 print(f"📹 [Section {section_num} Variant {variant_num}] Generating code variant {variant_num}/3")
                 print(f"{'━'*60}")
 
-                # Prepare system prompt (Manim guidelines and requirements)
-                from services.prompts import get_manim_prompt
-                system_prompt = get_manim_prompt()
+                # Check if we have pre-generated audio for this section
+                audio_info = audio_map.get(section_num)
+                audio_instruction = ""
                 
-                # Prepare user prompt (section-specific information)
-                # Note: Audio will be generated later based on extracted script
-                user_prompt = f"""Topic: {prompt}
+                if audio_info:
+                    audio_path = audio_info['audio_path']
+                    narration_text = audio_info['narration_text']
+                    
+                    # Check if audio file actually exists before using PreGeneratedAudioService
+                    audio_file = Path(audio_path)
+                    if audio_file.exists():
+                        print(f"🎤 [Section {section_num} V{variant_num}] Using pre-generated audio: {audio_file.name}")
+                        
+                        audio_instruction = f"""
+
+IMPORTANT - PRE-GENERATED AUDIO:
+Audio has been pre-generated for this section. You MUST use it as follows:
+
+1. Use VoiceoverScene (NOT Scene)
+2. Import PreGeneratedAudioService from services.tts.pregenerated
+3. Initialize the service with the pre-generated audio file path
+4. Use self.voiceover() blocks as normal - the service will load the pre-generated audio
+
+Example code structure:
+
+from manim import *
+from manim_voiceover import VoiceoverScene
+from services.tts.pregenerated import PreGeneratedAudioService
+
+class YourScene(VoiceoverScene):
+    def construct(self):
+        # Initialize with pre-generated audio file
+        audio_path = "/outputs/{job_id}/voiceovers/section_{section_num}.mp3"
+        self.set_speech_service(PreGeneratedAudioService(audio_file_path=audio_path, fallback_to_elevenlabs=True))
+        
+        # Use voiceover blocks as normal - audio is already generated
+        with self.voiceover(text="{narration_text[:100]}...") as tracker:
+            # Your animations here
+            # Use tracker.duration for timing
+            pass
+
+The narration text for this section is:
+"{narration_text}"
+
+Use this exact text in the self.voiceover() calls for proper synchronization.
+"""
+                    else:
+                        print(f"⚠️  [Section {section_num} V{variant_num}] Pre-generated audio file not found: {audio_path}")
+                        print(f"⚠️  [Section {section_num} V{variant_num}] Falling back to TTS during rendering")
+                        audio_instruction = "\n\nNote: Pre-generated audio was not available. Generate voiceover using ElevenLabsService as usual."
+                else:
+                    print(f"⚠️  [Section {section_num} V{variant_num}] No pre-generated audio, will use TTS during rendering")
+                    audio_instruction = "\n\nNote: Generate voiceover using ElevenLabsService as usual."
+
+                section_prompt = f"""{get_manim_meta_prompt(voice_id)}
+
+Topic: {prompt}
 Section: {section['section']} (Duration: {section['duration']})
 Content: {section['content']}
 
