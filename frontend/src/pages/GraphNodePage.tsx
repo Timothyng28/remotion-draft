@@ -173,7 +173,17 @@ export const GraphNodePage: React.FC = () => {
               0;
 
             const handleVideoEnd = useCallback(() => {
+              console.log("🎬 VIDEO END EVENT FIRED", {
+                currentSegmentId: currentSegment?.id,
+                isGenerating,
+                isLastSegment,
+                isQuestionNode: currentSegment?.isQuestionNode,
+                hasSeenFirstVideo,
+                isAutoPlayEnabled,
+              });
+
               if (!currentSegment || isGenerating) {
+                console.log("⏸️ Ignoring video end - no segment or generating");
                 return;
               }
 
@@ -184,7 +194,7 @@ export const GraphNodePage: React.FC = () => {
                 hasSeenFirstVideo
               ) {
                 // Leaf video detected - create question node
-                console.log("Leaf video ended, creating question node");
+                console.log("❓ Leaf video ended, creating question node");
                 createQuestionNode(session.tree.currentNodeId);
               } else if (
                 isAutoPlayEnabled &&
@@ -196,7 +206,13 @@ export const GraphNodePage: React.FC = () => {
                   session.tree.currentNodeId
                 );
                 if (nextNode) {
+                  console.log("⏭️ Auto-advancing to next node:", nextNode.id);
+                  // Update the tree state
                   navigateToNode(nextNode.id);
+                  // Also update the URL to prevent sync issues
+                  navigate(`/graph/${nextNode.id}`, { replace: true });
+                } else {
+                  console.log("🛑 No next node available");
                 }
               }
             }, [
@@ -208,6 +224,7 @@ export const GraphNodePage: React.FC = () => {
               isAutoPlayEnabled,
               navigateToNode,
               hasSeenFirstVideo,
+              navigate,
             ]);
 
             // Effect to restart video when segment changes
@@ -217,9 +234,22 @@ export const GraphNodePage: React.FC = () => {
                 currentSegment.videoUrl &&
                 videoRef.current
               ) {
+                console.log("🔄 Segment changed, loading new video:", {
+                  segmentId: currentSegment.id,
+                  videoUrl: currentSegment.videoUrl,
+                });
                 setSegmentKey((prev) => prev + 1);
                 videoRef.current.load();
-                videoRef.current.play().catch(console.error);
+
+                // Play the video and log any errors
+                videoRef.current
+                  .play()
+                  .then(() => {
+                    console.log("▶️ Video playing successfully");
+                  })
+                  .catch((error) => {
+                    console.error("❌ Video play error:", error);
+                  });
               }
             }, [currentSegment?.id, currentSegment?.videoUrl]);
 
@@ -227,9 +257,14 @@ export const GraphNodePage: React.FC = () => {
             useEffect(() => {
               if (!videoRef.current) return;
 
-              videoRef.current.addEventListener("ended", handleVideoEnd);
+              console.log("👂 Setting up video 'ended' event listener");
+
+              const videoElement = videoRef.current;
+              videoElement.addEventListener("ended", handleVideoEnd);
+
               return () => {
-                videoRef.current?.removeEventListener("ended", handleVideoEnd);
+                console.log("🔇 Removing video 'ended' event listener");
+                videoElement.removeEventListener("ended", handleVideoEnd);
               };
             }, [handleVideoEnd]);
 
@@ -557,6 +592,18 @@ export const GraphNodePage: React.FC = () => {
                           className="w-full h-auto"
                           style={{
                             maxHeight: "80vh",
+                          }}
+                          onLoadedData={() => {
+                            console.log("📺 Video loaded and ready to play");
+                          }}
+                          onPlay={() => {
+                            console.log("▶️ Video started playing");
+                          }}
+                          onPause={() => {
+                            console.log("⏸️ Video paused");
+                          }}
+                          onEnded={() => {
+                            console.log("🏁 Video ended (native event)");
                           }}
                         >
                           Your browser does not support the video tag.
