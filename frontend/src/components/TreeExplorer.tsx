@@ -734,7 +734,7 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
           )}
 
           {/* Legend panel */}
-          <Panel position="bottom-left">
+          <Panel position="bottom-right">
             <div className="bg-slate-900/90 backdrop-blur-sm border border-slate-800/50 rounded-lg px-4 py-3 text-sm">
               <div className="flex flex-col gap-2 text-slate-300">
                 <div className="flex items-center gap-2">

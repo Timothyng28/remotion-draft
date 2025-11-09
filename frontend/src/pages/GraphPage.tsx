@@ -95,6 +95,14 @@ export const GraphPage: React.FC = () => {
               setPendingGeneration(null);
             }
           }, [pendingGeneration, requestNewTopic]);
+
+          // Filter to only show in-progress generations (pending or generating)
+          const inProgressGenerations = activeGenerations.filter(
+            (gen) => gen.status === "pending" || gen.status === "generating"
+          );
+          const hasActiveGenerations =
+            isGenerating || inProgressGenerations.length > 0;
+
           return (
             <div className="relative w-full h-screen flex dot-bg">
               {/* Left Sidebar */}
@@ -125,14 +133,14 @@ export const GraphPage: React.FC = () => {
                 </div>
 
                 {/* Generation Progress Banner */}
-                {(isGenerating || activeGenerations.length > 0) && (
+                {hasActiveGenerations && (
                   <div className="px-4 py-3 border-b border-slate-800/50 bg-blue-900/20">
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
                       <div className="text-xs text-blue-400 font-semibold">
-                        {activeGenerations.length > 0
-                          ? `Generating ${activeGenerations.length} video${
-                              activeGenerations.length > 1 ? "s" : ""
+                        {inProgressGenerations.length > 0
+                          ? `Generating ${inProgressGenerations.length} video${
+                              inProgressGenerations.length > 1 ? "s" : ""
                             }...`
                           : "Generating video..."}
                       </div>
@@ -175,14 +183,14 @@ export const GraphPage: React.FC = () => {
                       onNavigateToGeneration={navigateToNode}
                       onDismissGeneration={removeGenerationRequest}
                     />
-                  ) : isGenerating || activeGenerations.length > 0 ? (
+                  ) : hasActiveGenerations ? (
                     <div className="p-4">
                       <div className="text-slate-300 text-sm mb-4">
                         Preparing your learning experience...
                       </div>
-                      {activeGenerations.length > 0 && (
+                      {inProgressGenerations.length > 0 && (
                         <div className="space-y-2">
-                          {activeGenerations.map((gen) => (
+                          {inProgressGenerations.map((gen) => (
                             <div
                               key={gen.id}
                               className="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3"
