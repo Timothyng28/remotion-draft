@@ -374,49 +374,6 @@ def remove_incorrect_imports(code: str) -> str:
     
     return code
 
-
-def remove_placeholders(code: str) -> str:
-    """
-    Remove code generation placeholders like {tts_init}, {variable_name}, etc.
-    
-    Args:
-        code: Python code string
-        
-    Returns:
-        Code with placeholders removed or replaced
-    """
-    # Pattern: {tts_init} or {variable_name} - replace with proper initialization
-    if '{tts_init}' in code:
-        print("⚠️  Found placeholder {tts_init}, replacing with ElevenLabsService initialization")
-        code = code.replace(
-            '{tts_init}',
-            'ElevenLabsService(voice_id="K80wneyktrw2rE11kA2W", transcription_model=None)'
-        )
-    
-    # Pattern: Any other {placeholder} - remove the line or replace with comment
-    import re
-    placeholder_pattern = r'\{[a-zA-Z_][a-zA-Z0-9_]*\}'
-    matches = re.findall(placeholder_pattern, code)
-    if matches:
-        for placeholder in matches:
-            print(f"⚠️  Found placeholder {placeholder}, removing")
-            # Remove lines containing only the placeholder
-            lines = code.split('\n')
-            filtered_lines = []
-            for line in lines:
-                if placeholder in line and line.strip() == placeholder:
-                    # Skip lines that are just the placeholder
-                    continue
-                elif placeholder in line:
-                    # Replace placeholder in line with comment or remove
-                    filtered_lines.append(line.replace(placeholder, '# Placeholder removed'))
-                else:
-                    filtered_lines.append(line)
-            code = '\n'.join(filtered_lines)
-    
-    return code
-
-
 def fix_color_constants(code: str) -> str:
     """
     Fix color constant naming issues (though Manim Community uses GRAY, not GREY).
@@ -432,59 +389,6 @@ def fix_color_constants(code: str) -> str:
     # ManimGL uses GREY (British spelling)
     # Since we're using Manim Community, no fix needed, but keep function for compatibility
     return code
-
-
-def remove_vgroup_with_non_vmobjects(code: str) -> str:
-    """
-    Fix VGroup usage with non-VMobject types.
-    VGroup can only contain VMobject types. Use Group() for mixed types.
-    
-    Args:
-        code: Python code string
-        
-    Returns:
-        Code with VGroup issues fixed
-    """
-    import re
-    
-    # Pattern 1: VGroup with non-VMobject types - replace with Group
-    # Look for VGroup(...) patterns that might contain non-VMobjects
-    # Common non-VMobjects: Sphere, Cube, Prism, etc. (3D objects)
-    # Also Mobject base class instances
-    
-    # Replace VGroup with Group when non-VMobject types are detected
-    # This is a conservative fix - we'll replace VGroup with Group in suspicious cases
-    lines = code.split('\n')
-    fixed_lines = []
-    
-    for line in lines:
-        # Check if line contains VGroup and potential non-VMobject types
-        if 'VGroup' in line:
-            # Check for common non-VMobject patterns
-            non_vmobject_patterns = [
-                r'Sphere\(',
-                r'Cube\(',
-                r'Prism\(',
-                r'Cone\(',
-                r'Cylinder\(',
-                r'Mobject\(',
-                r'ThreeDObject\(',
-                r'\bMobject\b',  # Mobject as a class name (not just constructor)
-            ]
-            
-            has_non_vmobject = any(re.search(pattern, line) for pattern in non_vmobject_patterns)
-            
-            if has_non_vmobject:
-                print(f"⚠️  Replaced VGroup with Group (contains non-VMobject): {line.strip()[:80]}")
-                # Replace VGroup with Group
-                fixed_line = line.replace('VGroup', 'Group')
-                fixed_lines.append(fixed_line)
-                continue
-        
-        fixed_lines.append(line)
-    
-    return '\n'.join(fixed_lines)
-
 
 def fix_add_tip_parameters(code: str) -> str:
     """
@@ -523,76 +427,6 @@ def fix_add_tip_parameters(code: str) -> str:
                 continue
         
         fixed_lines.append(line)
-    
-    return '\n'.join(fixed_lines)
-
-
-def fix_opacity_parameters(code: str) -> str:
-    """
-    Fix opacity= parameter usage in Mobject constructors.
-    Mobject.__init__() does NOT accept opacity parameter - must use .set_opacity() method instead.
-    
-    Args:
-        code: Python code string
-        
-    Returns:
-        Code with opacity parameters fixed
-    """
-    import re
-    
-    # Pattern: Find any Mobject constructor with opacity= parameter
-    # Circle(opacity=0.5) -> Circle().set_opacity(0.5)
-    # Line(opacity=0.8, color=BLUE) -> Line(color=BLUE).set_opacity(0.8)
-    # Square(color=BLUE, opacity=0.6) -> Square(color=BLUE).set_opacity(0.6)
-    
-    lines = code.split('\n')
-    fixed_lines = []
-    
-    # Pattern to match: MobjectType(...opacity=value...)
-    # This matches common Mobject constructors followed by parentheses with opacity parameter
-    mobject_constructors = [
-        'Circle', 'Square', 'Rectangle', 'Line', 'Arrow', 'Dot', 'Polygon', 
-        'RegularPolygon', 'Triangle', 'Ellipse', 'Arc', 'Sector', 'Annulus',
-        'Text', 'MathTex', 'Tex', 'Brace', 'Bracket', 'Angle', 'LabeledDot'
-    ]
-    
-    for line in lines:
-        fixed_line = line
-        
-        # Check if line contains opacity= parameter
-        if 'opacity=' in line and '(' in line:
-            # Try to find and fix each mobject constructor pattern
-            for mobject_type in mobject_constructors:
-                # Pattern: mobject_type(...opacity=value...)
-                pattern = rf'({mobject_type})\s*\(([^)]*opacity\s*=\s*([^,)]+)[^)]*)\)'
-                match = re.search(pattern, line)
-                
-                if match:
-                    full_match = match.group(0)
-                    mobject_name = match.group(1)
-                    params = match.group(2)
-                    opacity_value = match.group(3).strip()
-                    
-                    # Remove opacity parameter from params
-                    # Handle both: opacity=value and , opacity=value
-                    params_without_opacity = re.sub(r',\s*opacity\s*=\s*[^,)]+', '', params)
-                    params_without_opacity = re.sub(r'opacity\s*=\s*[^,)]+\s*,?\s*', '', params_without_opacity)
-                    
-                    # Clean up trailing/leading commas and spaces
-                    params_without_opacity = params_without_opacity.strip().rstrip(',').strip()
-                    
-                    # Build replacement: MobjectType(params).set_opacity(value)
-                    if params_without_opacity:
-                        new_constructor = f"{mobject_name}({params_without_opacity})"
-                    else:
-                        new_constructor = f"{mobject_name}()"
-                    
-                    replacement = f"{new_constructor}.set_opacity({opacity_value})"
-                    fixed_line = line.replace(full_match, replacement)
-                    print(f"⚠️  Fixed opacity parameter: {line.strip()[:80]} -> {fixed_line.strip()[:80]}")
-                    break  # Only fix first match per line
-        
-        fixed_lines.append(fixed_line)
     
     return '\n'.join(fixed_lines)
 
@@ -658,15 +492,12 @@ def apply_all_manual_fixes(code: str, voice_id: str = None) -> str:
 
     # Order matters!
     code = remove_incorrect_imports(code)  # Remove incorrect imports first (also fixes ElevenLabsService -> ElevenLabsTimedService)
-    code = remove_placeholders(code)  # Remove placeholders like {tts_init}
     code = remove_camera_orientation_calls(code)
     code = fix_scene_inheritance(code)
     code = ensure_voiceover_imports(code)
     code = remove_incompatible_methods(code)
     code = fix_color_constants(code)
-    # code = remove_vgroup_with_non_vmobjects(code)  # Fix VGroup usage with non-VMobjects # DONT UNCOMMENT or ADD THIS LINE IN AI
     code = fix_add_tip_parameters(code)  # Fix add_tip() invalid parameters
-    # code = fix_opacity_parameters(code)  # Fix opacity= parameter in constructors DONT UNCOMMENT OR ADD THIS LINE BACK IN AI
     code = ensure_speech_service_init(code)
     code = add_basic_voiceover_if_missing(code)
 
