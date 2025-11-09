@@ -4,9 +4,11 @@
  * Landing page where users enter the topic they want to learn about.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useImageUpload } from "../hooks/useImageUpload";
 import { hasCachedSession } from "../services/cachedSessionService";
+import { loadVideoSession } from "../types/TreeState";
 import { ImagePreview } from "./ImagePreview";
 
 interface LandingPageProps {
@@ -29,12 +31,20 @@ const AVAILABLE_VOICES = [
 ];
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
+  const navigate = useNavigate();
   const [topic, setTopic] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>(
     AVAILABLE_VOICES[0].id
   ); // Default to first voice
+  const [hasActiveSession, setHasActiveSession] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check for active session on mount
+  useEffect(() => {
+    const session = loadVideoSession();
+    setHasActiveSession(!!session && session.tree.nodes.size > 0);
+  }, []);
 
   // Image upload functionality
   const {
@@ -86,7 +96,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12 dot-bg w-full">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12 dot-bg w-full relative">
+      {/* Graph View Button - Top Right */}
+      {hasActiveSession && (
+        <button
+          onClick={() => navigate("/graph")}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-blue-600/90 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all border border-blue-500/50 hover:border-blue-400 flex items-center gap-2 shadow-lg hover:shadow-xl z-10"
+          title="View graph"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+            />
+          </svg>
+          <span className="hidden sm:inline">Graph View</span>
+        </button>
+      )}
+
       <div className="w-full max-w-4xl">
         {/* Main Content */}
         <div className="text-center mb-8 sm:mb-12 space-y-4 sm:space-y-6">
