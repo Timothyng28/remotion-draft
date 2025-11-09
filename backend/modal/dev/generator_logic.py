@@ -151,18 +151,78 @@ def generate_educational_video_logic(
 
         # Code generation service selection (STAGE 2)
         # RULE: Use Anthropic Sonnet 4.5 if image is provided (vision support required)
-        #       Use Cerebras for text-only (faster, cheaper)
+        #       Use xAI Grok by default for text-only (configurable via CODE_GEN_PROVIDER)
         # Note: mode parameter is ignored, selection based on image presence
         if image_context:
             # Image provided: MUST use Anthropic Sonnet 4.5 for vision API support
             code_provider = "anthropic"
             code_model = "claude-sonnet-4-5-20250929"
-            print(f"🖼️  Image context detected - using Anthropic Sonnet 4.5 (vision support)")
+            print("🖼️  Image context detected - using Anthropic Sonnet 4.5 (vision support)")
         else:
-            # Text-only: Use Cerebras Qwen 3 (faster, cheaper)
-            code_provider = "cerebras"
-            code_model = "qwen-3-235b-a22b-instruct-2507"
-            print(f"📝 Text-only input - using Cerebras Qwen 3 (fast, cost-effective)")
+            provider_map = {
+                "grok": {
+                    "provider": "xai",
+                    "model": "grok-code-fast-1",
+                    "label": "xAI Grok (grok-code-fast-1)",
+                },
+                "claude": {
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5-20250929",
+                    "label": "Anthropic Claude (claude-sonnet-4-5-20250929)",
+                },
+                "cerebras": {
+                    "provider": "cerebras",
+                    "model": "qwen-3-235b-a22b-instruct-2507",
+                    "label": "Cerebras Qwen (qwen-3-235b-a22b-instruct-2507)",
+                },
+            }
+            default_priority = ["grok", "claude", "cerebras"]
+
+            raw_code_provider_env = os.getenv("CODE_GEN_PROVIDER", "")
+            configured_priority = []
+            invalid_entries = []
+
+            if raw_code_provider_env:
+                for entry in raw_code_provider_env.split(","):
+                    key = entry.strip().lower()
+                    if not key:
+                        continue
+                    if key in provider_map:
+                        configured_priority.append(key)
+                    else:
+                        invalid_entries.append(key)
+
+            combined_priority = []
+            for key in configured_priority + default_priority:
+                if key in provider_map and key not in combined_priority:
+                    combined_priority.append(key)
+
+            if not combined_priority:
+                combined_priority = default_priority
+
+            if raw_code_provider_env:
+                print(
+                    f"📝 Text-only input - CODE_GEN_PROVIDER='{raw_code_provider_env}' "
+                    f"→ priority order: {', '.join(combined_priority)}"
+                )
+            else:
+                print(
+                    f"📝 Text-only input - CODE_GEN_PROVIDER not set. "
+                    f"Using default priority: {', '.join(combined_priority)}"
+                )
+
+            if invalid_entries:
+                print(
+                    "⚠️  Ignoring unsupported CODE_GEN_PROVIDER values: "
+                    f"{', '.join(invalid_entries)}. "
+                    f"Supported values: {', '.join(provider_map.keys())}"
+                )
+
+            selected_key = combined_priority[0]
+            selected_config = provider_map[selected_key]
+            code_provider = selected_config["provider"]
+            code_model = selected_config["model"]
+            print(f"   Selected provider: {selected_config['label']}")
 
         print(f"🔧 Initializing {code_provider} {code_model} service for code generation...")
         print(f"   Selection: {'Vision-enabled (image provided)' if image_context else 'Text-only (no image)'}")

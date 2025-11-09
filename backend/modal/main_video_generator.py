@@ -412,7 +412,7 @@ def generate_educational_video(
 
         # Initialize LLM service
         sys.path.insert(0, '/root')
-        from llm import AnthropicClaudeService, LLMMessage
+        from llm import AnthropicClaudeService, LLMMessage, create_llm_service
 
         print("🔧 Initializing Claude Sonnet 4.5 service...")
         claude_service = AnthropicClaudeService(model="claude-sonnet-4-5-20250929")
@@ -544,6 +544,86 @@ def generate_educational_video(
             "plan": mega_plan
         })
 
+        # Code generation service selection (text vs. vision)
+        code_llm_service = None
+        code_model = "claude-sonnet-4-5-20250929"
+        code_generation_label = "Anthropic Claude (claude-sonnet-4-5-20250929)"
+
+        if image_context:
+            print("🖼️  Image context detected - using Anthropic Sonnet 4.5 for code generation (vision support)")
+            code_llm_service = claude_service
+        else:
+            provider_map = {
+                "grok": {
+                    "provider": "xai",
+                    "model": "grok-code-fast-1",
+                    "label": "xAI Grok (grok-code-fast-1)",
+                },
+                "claude": {
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5-20250929",
+                    "label": "Anthropic Claude (claude-sonnet-4-5-20250929)",
+                },
+                "cerebras": {
+                    "provider": "cerebras",
+                    "model": "qwen-3-235b-a22b-instruct-2507",
+                    "label": "Cerebras Qwen (qwen-3-235b-a22b-instruct-2507)",
+                },
+            }
+            default_priority = ["grok", "claude", "cerebras"]
+
+            raw_code_provider_env = os.getenv("CODE_GEN_PROVIDER", "")
+            configured_priority = []
+            invalid_entries = []
+
+            if raw_code_provider_env:
+                for entry in raw_code_provider_env.split(","):
+                    key = entry.strip().lower()
+                    if not key:
+                        continue
+                    if key in provider_map:
+                        configured_priority.append(key)
+                    else:
+                        invalid_entries.append(key)
+
+            combined_priority = []
+            for key in configured_priority + default_priority:
+                if key in provider_map and key not in combined_priority:
+                    combined_priority.append(key)
+
+            if not combined_priority:
+                combined_priority = default_priority
+
+            if raw_code_provider_env:
+                print(
+                    f"📝 Text-only code generation - CODE_GEN_PROVIDER='{raw_code_provider_env}' "
+                    f"→ priority order: {', '.join(combined_priority)}"
+                )
+            else:
+                print(
+                    f"📝 Text-only code generation - CODE_GEN_PROVIDER not set. "
+                    f"Using default priority: {', '.join(combined_priority)}"
+                )
+
+            if invalid_entries:
+                print(
+                    "⚠️  Ignoring unsupported CODE_GEN_PROVIDER values: "
+                    f"{', '.join(invalid_entries)}. "
+                    f"Supported values: {', '.join(provider_map.keys())}"
+                )
+
+            selected_key = combined_priority[0]
+            selected_config = provider_map[selected_key]
+            code_model = selected_config["model"]
+            code_generation_label = selected_config["label"]
+
+            print(f"   Selected provider: {code_generation_label}")
+            code_llm_service = create_llm_service(
+                provider=selected_config["provider"],
+                model=code_model,
+            )
+            print(f"✓ {selected_config['provider']} {code_model} service initialized for code generation\n")
+
         # STAGE 2: Pipelined Code Generation + Rendering
         print(f"\n{'─'*60}")
         print("🎨 STAGE 2: Pipelined Code Generation → Rendering")
@@ -587,8 +667,8 @@ Generate a SINGLE scene for this section only. The scene should be self-containe
                 if image_context:
                     section_prompt += "\n\nNOTE: An image was provided as context for this video. When creating visual demonstrations, consider referencing elements or concepts visible in that image."
 
-                print(f"🤖 [Async {section_num}] Calling Claude Sonnet for code generation (async)...")
-                print(f"   Model: claude-sonnet-4-5-20250929")
+                print(f"🤖 [Async {section_num}] Calling {code_generation_label} for code generation (async)...")
+                print(f"   Model: {code_model}")
                 print(f"   Temperature: {TEMP}")
                 print(f"   Max tokens: {MAX_TOKENS}")
                 if image_context:
@@ -624,8 +704,10 @@ Generate a SINGLE scene for this section only. The scene should be self-containe
                     )
                     manim_code = response.content[0].text
                 else:
-                    # Text-only API call using llm.py service - ALL happen in parallel!
-                    manim_code = await claude_service.generate_simple_async(
+                    # Text-only API call using configured LLM service - ALL happen in parallel!
+                    if code_llm_service is None:
+                        raise RuntimeError("Code generation service is not initialized for text-only generation.")
+                    manim_code = await code_llm_service.generate_simple_async(
                         prompt=section_prompt,
                         max_tokens=MAX_TOKENS,
                         temperature=TEMP

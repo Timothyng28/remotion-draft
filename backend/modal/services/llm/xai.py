@@ -19,7 +19,7 @@ class XAIService(LLMService):
 
     def __init__(
         self,
-        model: str = "grok-4-fast-reasoning",
+        model: str = "grok-code-fast-1",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         **kwargs: Any,

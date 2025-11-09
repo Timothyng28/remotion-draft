@@ -5,6 +5,11 @@ Configuration and constants for dev environment video generator
 # LLM Configuration
 TEMP = 0.3
 MAX_TOKENS = 16000
+# CODE_GEN_PROVIDER controls text-only code generation priority.
+# Supported values (comma-separated list allowed):
+#   - "grok" (default) → xAI Grok `grok-code-fast-1`
+#   - "claude"        → Anthropic Claude Sonnet 4.5
+#   - "cerebras"      → Cerebras Qwen 3.235B
 
 # Rendering Configuration
 MAX_RENDER_ATTEMPTS = 2
@@ -30,6 +35,7 @@ RENDER_SECRETS = [
     "gcp-credentials",  # For GCS uploads (contains GCP_SERVICE_ACCOUNT_JSON)
     "google-api-key",  # For Gemini embeddings
     "embedding-provider",  # Optional override for embedding provider
+    "code-gen-config",  # Code generation provider selection (grok/claude/cerebras)
     "planning-config",  # Planning LLM provider selection (cerebras/xai)
 ]
 
@@ -41,5 +47,6 @@ MAIN_SECRETS = [
     "gcp-credentials",  # For GCS uploads (contains GCP_SERVICE_ACCOUNT_JSON)
     "google-api-key",  # For Gemini embeddings
     "embedding-provider",  # Optional override for embedding provider
+    "code-gen-config",  # Code generation provider selection (grok/claude/cerebras)
     "planning-config",  # Planning LLM provider selection (cerebras/xai)
 ]
