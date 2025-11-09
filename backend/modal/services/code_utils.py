@@ -637,9 +637,7 @@ def apply_all_manual_fixes(code: str) -> str:
     code = ensure_voiceover_imports(code)
     code = remove_incompatible_methods(code)
     code = fix_color_constants(code)
-    code = remove_vgroup_with_non_vmobjects(code)
     code = fix_add_tip_parameters(code)  # Fix add_tip() invalid parameters
-    code = fix_opacity_parameters(code)  # Fix opacity= parameter in constructors
     code = ensure_speech_service_init(code)
     code = add_basic_voiceover_if_missing(code)
 
