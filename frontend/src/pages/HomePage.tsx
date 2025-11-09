@@ -13,9 +13,9 @@ import { InputOverlay } from "../components/InputOverlay";
 import { LandingPage } from "../components/LandingPage";
 import { LeafQuestionOverlay } from "../components/LeafQuestionOverlay";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { NodeCarousel } from "../components/NodeCarousel";
 import { QuizQuestionOverlay } from "../components/QuizQuestionOverlay";
 import { TreeExplorer } from "../components/TreeExplorer";
-import { TreeVisualizer } from "../components/TreeVisualizer";
 import { VideoController } from "../controllers/VideoController";
 import {
   hasCachedSession,
@@ -1126,7 +1126,7 @@ export const HomePage: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Tree Visualizer - horizontal minimap below video */}
+                    {/* Node Carousel - horizontal timeline below video */}
                     {session.tree.nodes.size > 0 && (
                       <div
                         style={{
@@ -1134,9 +1134,9 @@ export const HomePage: React.FC = () => {
                           maxWidth: "1280px",
                         }}
                       >
-                        <TreeVisualizer
+                        <NodeCarousel
                           tree={session.tree}
-                          onExpandClick={() => setShowTreeExplorer(true)}
+                          onNodeClick={(nodeId) => navigateToNode(nodeId)}
                           className="w-full"
                         />
                       </div>
