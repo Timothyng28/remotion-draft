@@ -857,7 +857,7 @@ Generate the fixed code now:"""
             
             # Pattern to match set_speech_service with ElevenLabsService
             elevenlabs_pattern = r'self\.set_speech_service\(ElevenLabsTimedService\([^)]*\)\)'
-            replacement = f'self.set_speech_service(PreGeneratedAudioService(audio_file_path="{audio_path}", fallback_to_elevenlabs=True, voice_id="{selected_voice_id}"))'
+            replacement = f'self.set_speech_service(PreGeneratedAudioService(audio_file_path="{audio_path}", fallback_to_elevenlabs=True, voice_id="{selected_voice_id}")'
             
             patched = re.sub(elevenlabs_pattern, replacement, patched)
             
