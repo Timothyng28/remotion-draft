@@ -77,7 +77,7 @@ class CacheService:
             raise ValueError("Normalized prompt cannot be empty")
         
         # Include voice_id in cache key if provided (non-default)
-        default_voice_id = "pqHfZKP75CvOlQylNhV4"
+        default_voice_id = "K80wneyktrw2rE11kA2W"
         if voice_id and voice_id != default_voice_id:
             # Sanitize voice_id for use in filename
             safe_voice_id = voice_id.replace("/", "_").replace("\\", "_")

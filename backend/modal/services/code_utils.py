@@ -31,7 +31,7 @@ def remove_transcription_params(code: str, voice_id: str = None) -> str:
         Cleaned code with problematic parameters removed
     """
     # Use provided voice_id or default
-    selected_voice_id = voice_id or "pqHfZKP75CvOlQylNhV4"
+    selected_voice_id = voice_id or "K80wneyktrw2rE11kA2W"
     
     # Pattern 1: Remove transcription_model parameter (for both ElevenLabsService and ElevenLabsTimedService)
     for service_name in ['ElevenLabsService', 'ElevenLabsTimedService']:
@@ -270,7 +270,7 @@ def ensure_speech_service_init(code: str) -> str:
         elif in_construct and line.strip() and not line.strip().startswith('#') and not service_added:
             # Add speech service initialization after first non-comment line in construct
             new_lines.append('        # Initialize ElevenLabs speech service for audio narration')
-            new_lines.append('        self.set_speech_service(ElevenLabsTimedService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None))')
+            new_lines.append('        self.set_speech_service(ElevenLabsTimedService(voice_id="K80wneyktrw2rE11kA2W", transcription_model=None))')
             print("⚠️  Added speech service initialization to construct method")
             service_added = True
             in_construct = False
@@ -390,7 +390,7 @@ def remove_placeholders(code: str) -> str:
         print("⚠️  Found placeholder {tts_init}, replacing with ElevenLabsService initialization")
         code = code.replace(
             '{tts_init}',
-            'ElevenLabsService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None)'
+            'ElevenLabsService(voice_id="K80wneyktrw2rE11kA2W", transcription_model=None)'
         )
     
     # Pattern: Any other {placeholder} - remove the line or replace with comment

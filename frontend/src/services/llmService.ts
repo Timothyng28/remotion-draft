@@ -268,8 +268,8 @@ function buildSegmentPrompt(context: LearningContext): string {
     }
   }
   
-  // Use voice_id from context or default to male voice
-  const voiceId = context.voiceId || "pqHfZKP75CvOlQylNhV4";
+  // Use voice_id from context or default to Ewen voice
+  const voiceId = context.voiceId || "K80wneyktrw2rE11kA2W";
   const ttsInit = `from tts import ElevenLabsTimedService
         self.set_speech_service(ElevenLabsTimedService(voice_id="${voiceId}", transcription_model=None))`;
   

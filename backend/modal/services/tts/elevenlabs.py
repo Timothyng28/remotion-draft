@@ -23,7 +23,7 @@ class ElevenLabsTimedService(SpeechService):
 
     def __init__(self,
                  api_key: Optional[str] = None,
-                 voice_id: str = "pqHfZKP75CvOlQylNhV4",  # Specified voice ID
+                 voice_id: str = "K80wneyktrw2rE11kA2W",  # Specified voice ID (Ewen)
                  model_id: str = "eleven_multilingual_v2",
                  stability: float = 0.5,
                  similarity_boost: float = 0.75,
@@ -36,7 +36,7 @@ class ElevenLabsTimedService(SpeechService):
 
         Args:
             api_key: ElevenLabs API key (or set via ELEVENLABS_API_KEY env var)
-            voice_id: Voice ID to use (default: pqHfZKP75CvOlQylNhV4)
+            voice_id: Voice ID to use (default: K80wneyktrw2rE11kA2W)
             model_id: Model to use (eleven_multilingual_v2, eleven_monolingual_v1, etc.)
             stability: Voice stability (0-1, higher = more consistent)
             similarity_boost: Voice clarity (0-1, higher = more similar to original)

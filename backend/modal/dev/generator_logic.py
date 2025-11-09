@@ -344,8 +344,8 @@ def generate_educational_video_logic(
 
         from services.tts import ElevenLabsTimedService
         
-        # Use provided voice_id or default to male voice
-        selected_voice_id = voice_id or "pqHfZKP75CvOlQylNhV4"
+        # Use provided voice_id or default to Ewen voice
+        selected_voice_id = voice_id or "K80wneyktrw2rE11kA2W"
         capture_log(f"Using voice ID: {selected_voice_id}", "info")
         
         tts_service = ElevenLabsTimedService(
@@ -853,7 +853,7 @@ Generate the fixed code now:"""
             audio_path = f"/outputs/{job_id}/voiceovers/section_{section_num}.mp3"
             
             # Use selected voice_id
-            selected_voice_id = voice_id or "pqHfZKP75CvOlQylNhV4"
+            selected_voice_id = voice_id or "K80wneyktrw2rE11kA2W"
             
             # Pattern to match set_speech_service with ElevenLabsService
             elevenlabs_pattern = r'self\.set_speech_service\(ElevenLabsTimedService\([^)]*\)\)'

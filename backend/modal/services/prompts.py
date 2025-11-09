@@ -6,7 +6,7 @@ Using original prompts verbatim from backend/prompts.py
 import os
 
 # TTS Provider Configuration - ElevenLabs only
-ELEVENLABS_VOICE_ID_DEFAULT = "pqHfZKP75CvOlQylNhV4"
+ELEVENLABS_VOICE_ID_DEFAULT = "K80wneyktrw2rE11kA2W"
 
 def get_tts_initialization_code(voice_id=None):
     """
@@ -231,7 +231,7 @@ class ExplainerScene(Scene):
 ❌ **NEVER USE**: `RecorderService()` - It requires additional packages and causes EOFError prompts
 ✅ **CORRECT**: For standard Scene class, use only 2D elements: Axes(), NumberPlane(), .shift(), .move_to()
 ✅ **CORRECT**: For 3D, you MUST inherit from ThreeDScene: `class MyScene(ThreeDScene):`
-✅ **CORRECT**: For audio, ALWAYS use: `from services.tts import ElevenLabsTimedService` then `self.set_speech_service(ElevenLabsTimedService(voice_id="pqHfZKP75CvOlQylNhV4", transcription_model=None))`
+✅ **CORRECT**: For audio, ALWAYS use: `from services.tts import ElevenLabsTimedService` then `self.set_speech_service(ElevenLabsTimedService(voice_id="K80wneyktrw2rE11kA2W", transcription_model=None))`
 ❌ **NEVER USE**: `from manim_voiceover.services.elevenlabs import ElevenLabsService` - This module is NOT available in the container
 ⚠️ **IMPORTANT**: ALWAYS set `transcription_model=None` to disable transcription and avoid interactive prompts
 ✅ **CORRECT**: For pre-generated audio, use: `from services.tts.pregenerated import PreGeneratedAudioService` (NOT from manim_voiceover.services.tts)

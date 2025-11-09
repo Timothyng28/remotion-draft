@@ -225,7 +225,7 @@ def render_single_scene_logic(
                 if result.stderr:
                     stderr_lower = result.stderr.lower()
                     # Use selected voice_id or default
-                    selected_voice_id = voice_id or "pqHfZKP75CvOlQylNhV4"
+                    selected_voice_id = voice_id or "K80wneyktrw2rE11kA2W"
                     
                     if 'eoferror' in stderr_lower:
                         if 'recorderservice' in stderr_lower or 'recorder' in stderr_lower:

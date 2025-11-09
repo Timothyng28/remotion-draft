@@ -1,10 +1,10 @@
 # Dynamic Voice ID Implementation
 
 ## Summary
-Updated the entire codebase to use dynamically selected voice IDs instead of hardcoded values. Now all hardcoded instances of `pqHfZKP75CvOlQylNhV4` use the voice selected by the user in the landing page.
+Updated the entire codebase to use dynamically selected voice IDs instead of hardcoded values. Now all hardcoded instances of the default voice use the voice selected by the user in the landing page.
 
 ## Problem
-The voice ID `pqHfZKP75CvOlQylNhV4` was hardcoded in 29 locations across the codebase, including:
+The default voice ID was hardcoded in 29 locations across the codebase, including:
 - LLM prompts that generate Manim code
 - Code fixing/patching utilities
 - Error messages and repair prompts
@@ -91,7 +91,7 @@ Here's how the voice ID flows through the system:
 
 1. **User Selection** → Landing Page → App Component → VideoController
    ```
-   User clicks female voice → voice_id = "XfNU2rGpBa01ckF309OY"
+   User selects voice → voice_id = "3qdetrzoUbrHyBEgSqsF" (example: Lui Leng)
    ```
 
 2. **Video Generation Request** → Backend API
@@ -110,7 +110,7 @@ Here's how the voice ID flows through the system:
    ```
    get_manim_prompt(voice_id)
    → get_tts_initialization_code(voice_id)
-   → Generated code contains: ElevenLabsTimedService(voice_id="XfNU2rGpBa01ckF309OY")
+   → Generated code contains: ElevenLabsTimedService(voice_id="3qdetrzoUbrHyBEgSqsF")
    ```
 
 5. **Code Fixing** → Utilities
@@ -122,8 +122,8 @@ Here's how the voice ID flows through the system:
 
 6. **TTS Generation** → ElevenLabs
    ```
-   ElevenLabsTimedService(voice_id="XfNU2rGpBa01ckF309OY")
-   → Generates audio with female voice
+   ElevenLabsTimedService(voice_id="3qdetrzoUbrHyBEgSqsF")
+   → Generates audio with selected voice
    ```
 
 7. **Scene Rendering** → Manim
@@ -136,7 +136,7 @@ Here's how the voice ID flows through the system:
 ## Default Behavior
 
 When `voice_id` is not provided or is `None`:
-- Default: `"pqHfZKP75CvOlQylNhV4"` (male voice)
+- Default: `"K80wneyktrw2rE11kA2W"` (Ewen voice)
 - This ensures backward compatibility with existing code
 
 ## Testing
@@ -157,7 +157,7 @@ To verify the implementation:
 
 3. **Check Generated Code:**
    - Look at backend logs during generation
-   - Verify log line: "Using voice ID: XfNU2rGpBa01ckF309OY" (or pqHfZKP75CvOlQylNhV4)
+   - Verify log line shows selected voice ID
    - Verify generated Manim code contains correct voice_id
 
 4. **Test Error Repair:**
@@ -166,8 +166,12 @@ To verify the implementation:
 
 ## Voice IDs
 
-- **Male Voice (Default)**: `pqHfZKP75CvOlQylNhV4`
-- **Female Voice**: `XfNU2rGpBa01ckF309OY`
+- **Ewen (Default)**: `K80wneyktrw2rE11kA2W`
+- **Lui Leng**: `3qdetrzoUbrHyBEgSqsF`
+- **Ming Jun**: `UegrLZyjnJFv8l6OQkYO`
+- **Timothy**: `7Sq89C8p7zNMCiILWbMA`
+- **Peter Griffin**: `lb0GqmO0jSR60T0eQdIc`
+- **3Blue1Brown**: `ngeTUXucUwpDZ8yZi8OV`
 
 ## Deployment
 

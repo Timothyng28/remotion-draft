@@ -4,8 +4,12 @@
 Added female voice option to the video generation system with voice selection UI in the landing page.
 
 ## Voice IDs
-- **Male Voice (Default)**: `pqHfZKP75CvOlQylNhV4`
-- **Female Voice (New)**: `XfNU2rGpBa01ckF309OY`
+- **Ewen (Default)**: `K80wneyktrw2rE11kA2W`
+- **Lui Leng**: `3qdetrzoUbrHyBEgSqsF`
+- **Ming Jun**: `UegrLZyjnJFv8l6OQkYO`
+- **Timothy**: `7Sq89C8p7zNMCiILWbMA`
+- **Peter Griffin**: `lb0GqmO0jSR60T0eQdIc`
+- **3Blue1Brown**: `ngeTUXucUwpDZ8yZi8OV`
 
 ## Changes Made
 
@@ -78,11 +82,11 @@ The Modal API endpoint now accepts an additional optional parameter:
 ```json
 {
   "topic": "Your topic here",
-  "voice_id": "XfNU2rGpBa01ckF309OY"  // Optional
+  "voice_id": "3qdetrzoUbrHyBEgSqsF"  // Optional (example: Lui Leng)
 }
 ```
 
-If `voice_id` is not provided, the system defaults to the male voice (`pqHfZKP75CvOlQylNhV4`).
+If `voice_id` is not provided, the system defaults to Ewen's voice (`K80wneyktrw2rE11kA2W`).
 
 ## Testing
 

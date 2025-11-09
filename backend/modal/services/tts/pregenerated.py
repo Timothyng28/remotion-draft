@@ -29,7 +29,7 @@ class PreGeneratedAudioService(SpeechService):
         self.audio_exists = self.audio_file_path.exists()
         
         # Use provided voice_id or default
-        selected_voice_id = voice_id or "pqHfZKP75CvOlQylNhV4"
+        selected_voice_id = voice_id or "K80wneyktrw2rE11kA2W"
         
         if not self.audio_exists:
             if fallback_to_elevenlabs:

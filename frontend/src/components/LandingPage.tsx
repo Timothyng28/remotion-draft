@@ -21,9 +21,12 @@ interface LandingPageProps {
 
 // Available voices for selection
 const AVAILABLE_VOICES = [
-  { id: "pqHfZKP75CvOlQylNhV4", name: "Male Voice" },
-  { id: "XfNU2rGpBa01ckF309OY", name: "Female Voice" },
-  // Add more voices here as needed
+  { id: "K80wneyktrw2rE11kA2W", name: "Ewen" },
+  { id: "3qdetrzoUbrHyBEgSqsF", name: "Lui Leng" },
+  { id: "UegrLZyjnJFv8l6OQkYO", name: "Ming Jun" },
+  { id: "7Sq89C8p7zNMCiILWbMA", name: "Timothy" },
+  { id: "lb0GqmO0jSR60T0eQdIc", name: "Peter Griffin" },
+  { id: "ngeTUXucUwpDZ8yZi8OV", name: "3Blue1Brown" },
 ];
 
 export const LandingPage: React.FC<LandingPageProps> = ({

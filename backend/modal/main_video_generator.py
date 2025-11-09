@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION - TTS provider
 # ═══════════════════════════════════════════════════════════════════════════
-ELEVENLABS_VOICE_ID_DEFAULT = "pqHfZKP75CvOlQylNhV4"  # Default male voice
+ELEVENLABS_VOICE_ID_DEFAULT = "K80wneyktrw2rE11kA2W"  # Default Ewen voice
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SCRIPT EXTRACTION UTILITIES
