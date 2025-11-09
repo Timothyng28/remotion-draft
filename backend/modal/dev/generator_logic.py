@@ -303,157 +303,45 @@ def generate_educational_video_logic(
             "plan": mega_plan
         })
 
-        # STAGE 1.5: Pre-generate ALL Audio in Parallel (OPTIMIZATION)
-        print(f"\n{'─'*60}")
-        print("🎤 STAGE 1.5: Pre-generating Audio in Parallel")
-        print(f"{'─'*60}")
-        print(f"   Generating audio for {len(video_structure)} sections...")
-        capture_log(f"STAGE 1.5: Pre-generating audio for {len(video_structure)} sections")
-
-        yield update_job_progress({
-            "status": "processing",
-            "stage": 1.5,
-            "stage_name": "Audio Generation",
-            "progress_percentage": 18,
-            "message": f"Pre-generating audio for {len(video_structure)} sections in parallel...",
-            "job_id": job_id
-        })
-
-        # Import asyncio for parallel audio generation
+        # Initialize TTS service and audio directory for later use
         import asyncio
         
         # Create TTS service with custom or default voice
         from services.tts import ElevenLabsTimedService
         selected_voice_id = voice_id or "XfNU2rGpBa01ckF309OY"
         print(f"🎙️  Using ElevenLabs voice ID: {selected_voice_id}")
+        
         tts_service = ElevenLabsTimedService(
             voice_id=selected_voice_id,
             transcription_model=None
         )
-
-        # Create audio directory - use 'voiceovers' to match manim_voiceover's expectations
+        
         audio_dir = work_dir / "voiceovers"
         audio_dir.mkdir(exist_ok=True)
         print(f"📁 Audio directory: {audio_dir}")
-
-        async def generate_section_audio(section_info):
-            """Generate audio for a single section."""
-            i, section = section_info
-            section_num = i + 1
-            
-            try:
-                # Use section content as narration text
-                narration_text = section.get('content', '')
-                
-                # If content is just a summary, create a more detailed narration
-                if len(narration_text) < 50:
-                    narration_text = f"{section['section']}. {narration_text}"
-                
-                print(f"🎤 [Audio {section_num}] Generating audio for section: {section['section']}")
-                print(f"   Text length: {len(narration_text)} characters")
-                
-                # Generate audio using async API
-                audio_result = await tts_service.generate_from_text_async(
-                    text=narration_text,
-                    cache_dir=str(audio_dir),
-                    path=f"section_{section_num}.mp3"
-                )
-                
-                audio_path = audio_result.get('audio_path', '')
-                if audio_path:
-                    audio_file = Path(audio_path)
-                    if audio_file.exists():
-                        file_size = audio_file.stat().st_size / 1024  # KB
-                        print(f"✅ [Audio {section_num}] Audio generated and saved: {audio_file.name} ({file_size:.2f} KB)")
-                        print(f"   Full path: {audio_path}")
-                    else:
-                        print(f"⚠️  [Audio {section_num}] Audio path returned but file doesn't exist: {audio_path}")
-                        return (section_num, None, narration_text, f"Audio file not found at {audio_path}")
-                else:
-                    print(f"⚠️  [Audio {section_num}] No audio_path in result: {audio_result.keys()}")
-                    return (section_num, None, narration_text, "No audio_path in generation result")
-                
-                return (section_num, audio_path, narration_text, None)
-                
-            except Exception as e:
-                print(f"❌ [Audio {section_num}] Audio generation failed: {e}")
-                import traceback
-                print(traceback.format_exc())
-                return (section_num, None, None, str(e))
-
-        async def generate_all_audio_parallel():
-            """Generate ALL audio files in parallel."""
-            print(f"🎯 Starting PARALLEL audio generation for {len(video_structure)} sections...")
-            tasks = [generate_section_audio((i, section)) for i, section in enumerate(video_structure)]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            return results
-
-        # Execute parallel audio generation
-        audio_results = asyncio.run(generate_all_audio_parallel())
         
-        # Build audio mapping: section_num -> (audio_path, narration_text)
+        # Initialize empty audio_map - will be populated after code generation
         audio_map = {}
-        successful_audio = 0
-        for section_num, audio_path, narration_text, error in audio_results:
-            if audio_path and not error:
-                audio_map[section_num] = {
-                    'audio_path': audio_path,
-                    'narration_text': narration_text
-                }
-                successful_audio += 1
-                print(f"✓ Section {section_num} audio ready: {Path(audio_path).name}")
-            else:
-                print(f"⚠️  Section {section_num} audio failed: {error}")
-                # Continue without audio - will fall back to TTS during rendering
-                audio_map[section_num] = None
 
-        print(f"\n✓ Audio generation complete: {successful_audio} / {len(video_structure)} sections")
-        print(f"   Audio files saved in: {audio_dir}")
-        
-        # Verify all audio files exist
-        print(f"\n🔍 Verifying audio files exist...")
-        for section_num in audio_map:
-            if audio_map[section_num]:
-                audio_path = audio_map[section_num]['audio_path']
-                audio_file = Path(audio_path)
-                if audio_file.exists():
-                    file_size = audio_file.stat().st_size / 1024  # KB
-                    print(f"   ✓ Section {section_num}: {audio_file.name} ({file_size:.2f} KB)")
-                else:
-                    print(f"   ❌ Section {section_num}: File NOT FOUND at {audio_path}")
-                    # Remove from map so we fall back to TTS
-                    audio_map[section_num] = None
-
-        yield update_job_progress({
-            "status": "processing",
-            "progress_percentage": 22,
-            "message": f"Pre-generated audio for {successful_audio}/{len(video_structure)} sections",
-            "job_id": job_id
-        })
-
-        # STAGE 2: Pipelined Code Generation + Rendering
+        # STAGE 2: Code Generation (Extract Scripts First)
         print(f"\n{'─'*60}")
-        print("🎨 STAGE 2: Pipelined Code Generation → Rendering")
+        print("🎨 STAGE 2: Code Generation (Script Extraction)")
         print(f"{'─'*60}\n")
 
         yield update_job_progress({
             "status": "processing",
             "stage": 2,
-            "stage_name": "Pipeline",
-            "progress_percentage": 15,
-            "message": f"Starting pipelined generation and rendering for {len(video_structure)} sections...",
+            "stage_name": "Code Generation",
+            "progress_percentage": 20,
+            "message": f"Generating code and extracting scripts for {len(video_structure)} sections...",
             "job_id": job_id
         })
 
-        # Track spawned render jobs
-        import asyncio
-
-        render_function_calls = []
-
         section_scripts: Dict[int, str] = {}
+        section_code_variants: Dict[int, list] = {}  # section_num -> [(variant_num, code)]
 
         async def generate_code_variant_async(section_info, variant_num):
-            """Generate a single code variant for a section."""
+            """Generate a single code variant for a section (without audio - audio will be generated later)."""
             i, section = section_info
             section_num = i + 1
 
@@ -462,68 +350,18 @@ def generate_educational_video_logic(
                 print(f"📹 [Section {section_num} Variant {variant_num}] Generating code variant {variant_num}/3")
                 print(f"{'━'*60}")
 
-                # Check if we have pre-generated audio for this section
-                audio_info = audio_map.get(section_num)
-                audio_instruction = ""
+                # Prepare system prompt (Manim guidelines and requirements)
+                from services.prompts import get_manim_prompt
+                system_prompt = get_manim_prompt()
                 
-                if audio_info:
-                    audio_path = audio_info['audio_path']
-                    narration_text = audio_info['narration_text']
-                    
-                    # Check if audio file actually exists before using PreGeneratedAudioService
-                    audio_file = Path(audio_path)
-                    if audio_file.exists():
-                        print(f"🎤 [Section {section_num} V{variant_num}] Using pre-generated audio: {audio_file.name}")
-                        
-                        audio_instruction = f"""
-
-IMPORTANT - PRE-GENERATED AUDIO:
-Audio has been pre-generated for this section. You MUST use it as follows:
-
-1. Use VoiceoverScene (NOT Scene)
-2. Import PreGeneratedAudioService from services.tts.pregenerated
-3. Initialize the service with the pre-generated audio file path
-4. Use self.voiceover() blocks as normal - the service will load the pre-generated audio
-
-Example code structure:
-
-from manim import *
-from manim_voiceover import VoiceoverScene
-from services.tts.pregenerated import PreGeneratedAudioService
-
-class YourScene(VoiceoverScene):
-    def construct(self):
-        # Initialize with pre-generated audio file
-        audio_path = "/outputs/{job_id}/voiceovers/section_{section_num}.mp3"
-        self.set_speech_service(PreGeneratedAudioService(audio_file_path=audio_path, fallback_to_elevenlabs=True))
-        
-        # Use voiceover blocks as normal - audio is already generated
-        with self.voiceover(text="{narration_text[:100]}...") as tracker:
-            # Your animations here
-            # Use tracker.duration for timing
-            pass
-
-The narration text for this section is:
-"{narration_text}"
-
-Use this exact text in the self.voiceover() calls for proper synchronization.
-"""
-                    else:
-                        print(f"⚠️  [Section {section_num} V{variant_num}] Pre-generated audio file not found: {audio_path}")
-                        print(f"⚠️  [Section {section_num} V{variant_num}] Falling back to TTS during rendering")
-                        audio_instruction = "\n\nNote: Pre-generated audio was not available. Generate voiceover using ElevenLabsService as usual."
-                else:
-                    print(f"⚠️  [Section {section_num} V{variant_num}] No pre-generated audio, will use TTS during rendering")
-                    audio_instruction = "\n\nNote: Generate voiceover using ElevenLabsService as usual."
-
-                section_prompt = f"""{get_manim_meta_prompt(voice_id)}
-
-Topic: {prompt}
+                # Prepare user prompt (section-specific information)
+                # Note: Audio will be generated later based on extracted script
+                user_prompt = f"""Topic: {prompt}
 Section: {section['section']} (Duration: {section['duration']})
 Content: {section['content']}
 
 Generate a SINGLE scene for this section only. The scene should be self-contained and match the duration specified.
-{audio_instruction}"""
+Use ElevenLabsService for voiceover generation."""
 
                 # Add image context note if provided
                 if image_context:
@@ -752,9 +590,10 @@ Generate the fixed code now:"""
                 print(f"❌ [Section {section_num}] Max fix attempts (3) reached")
                 return (False, None, f"All {len(code_variants)} variants failed after 3 fix attempts", False)
 
-        async def process_section_with_variants(section_info):
+        async def generate_code_variants_for_section(section_info):
             """
-            Process a single section: generate 3 code variants, try rendering with fallback.
+            Generate 3 code variants for a single section and extract scripts.
+            Returns (section_num, code_variants, extracted_script, error)
             """
             i, section = section_info
             section_num = i + 1
@@ -786,10 +625,239 @@ Generate the fixed code now:"""
                 
                 if not code_variants:
                     print(f"❌ [Section {section_num}] All 3 variants failed to generate")
-                    return (section_num, None, "All code generation attempts failed", False)
+                    return (section_num, [], "", "All code generation attempts failed")
                 
                 print(f"✓ [Section {section_num}] Generated {len(code_variants)}/3 variants successfully")
                 
+                # Extract script from first successful variant
+                first_variant_code = code_variants[0][1]
+                extracted_script = extract_voiceover_script(first_variant_code)
+                
+                # Fallback to plan content if script extraction yields nothing
+                if not extracted_script or len(extracted_script.strip()) < 20:
+                    print(f"⚠️  [Section {section_num}] Script extraction failed or too short, falling back to plan content")
+                    extracted_script = section.get('content', '')
+                    if len(extracted_script) < 50:
+                        extracted_script = f"{section['section']}. {extracted_script}"
+                
+                print(f"✓ [Section {section_num}] Extracted script ({len(extracted_script)} chars): {extracted_script[:100]}...")
+                
+                return (section_num, code_variants, extracted_script, None)
+                    
+            except Exception as e:
+                print(f"❌ [Section {section_num}] Fatal error: {type(e).__name__}: {e}")
+                import traceback
+                print(traceback.format_exc())
+                return (section_num, [], "", str(e))
+
+        # PHASE 1: Generate all code variants and extract scripts
+        async def generate_all_code_variants():
+            """Generate code variants for all sections."""
+            print(f"🎯 PHASE 1: Generating code variants for {len(video_structure)} sections...")
+            section_tasks = [generate_code_variants_for_section((i, section)) for i, section in enumerate(video_structure)]
+            results = await asyncio.gather(*section_tasks)
+            return results
+        
+        code_gen_results = asyncio.run(generate_all_code_variants())
+        print(f"\n✓ All code generation completed")
+        
+        # Store code variants and scripts
+        for section_num, code_variants, extracted_script, error in code_gen_results:
+            if code_variants and not error:
+                section_code_variants[section_num] = code_variants
+                section_scripts[section_num] = extracted_script
+                print(f"✓ Section {section_num}: {len(code_variants)} variants, script ready")
+            else:
+                print(f"⚠️  Section {section_num}: Code generation failed - {error}")
+        
+        # STAGE 2.5: Generate Audio from Actual Scripts
+        print(f"\n{'─'*60}")
+        print("🎤 STAGE 2.5: Generating Audio from Extracted Scripts")
+        print(f"{'─'*60}")
+        
+        yield update_job_progress({
+            "status": "processing",
+            "stage": 2.5,
+            "stage_name": "Audio Generation",
+            "progress_percentage": 45,
+            "message": f"Generating audio from actual scripts for {len(section_scripts)} sections...",
+            "job_id": job_id
+        })
+        
+        async def generate_audio_from_script(section_num, script_text):
+            """Generate audio for a section using its actual extracted script."""
+            try:
+                print(f"🎤 [Audio {section_num}] Generating from actual script...")
+                print(f"   Text length: {len(script_text)} characters")
+                print(f"   Preview: {script_text[:100]}...")
+                
+                # Generate audio using async API
+                audio_result = await tts_service.generate_from_text_async(
+                    text=script_text,
+                    cache_dir=str(audio_dir),
+                    path=f"section_{section_num}.mp3"
+                )
+                
+                audio_path = audio_result.get('audio_path', '')
+                if audio_path and Path(audio_path).exists():
+                    file_size = Path(audio_path).stat().st_size / 1024  # KB
+                    print(f"✅ [Audio {section_num}] Generated: {Path(audio_path).name} ({file_size:.2f} KB)")
+                    return (section_num, audio_path, script_text, None)
+                else:
+                    print(f"⚠️  [Audio {section_num}] Audio generation failed")
+                    return (section_num, None, script_text, "Audio file not generated")
+                    
+            except Exception as e:
+                print(f"❌ [Audio {section_num}] Audio generation error: {e}")
+                import traceback
+                print(traceback.format_exc())
+                return (section_num, None, script_text, str(e))
+        
+        async def generate_all_audio_from_scripts():
+            """Generate audio for all sections using actual scripts."""
+            print(f"🎯 Generating audio for {len(section_scripts)} sections...")
+            tasks = [
+                generate_audio_from_script(section_num, script)
+                for section_num, script in section_scripts.items()
+            ]
+            results = await asyncio.gather(*tasks)
+            return results
+        
+        audio_gen_results = asyncio.run(generate_all_audio_from_scripts())
+        
+        # Populate audio_map with actual scripts
+        successful_audio = 0
+        for section_num, audio_path, script_text, error in audio_gen_results:
+            if audio_path and not error:
+                audio_map[section_num] = {
+                    'audio_path': audio_path,
+                    'narration_text': script_text
+                }
+                successful_audio += 1
+                print(f"✓ Section {section_num} audio ready with actual script")
+            else:
+                print(f"⚠️  Section {section_num} audio failed: {error}")
+                audio_map[section_num] = None
+        
+        print(f"\n✓ Audio generation complete: {successful_audio} / {len(section_scripts)} sections")
+        
+        yield update_job_progress({
+            "status": "processing",
+            "progress_percentage": 55,
+            "message": f"Generated audio for {successful_audio}/{len(section_scripts)} sections using actual scripts",
+            "job_id": job_id
+        })
+        
+        # STAGE 3: Patch Code to Use Pre-Generated Audio
+        print(f"\n{'─'*60}")
+        print("🔧 STAGE 3: Patching Code to Use Pre-Generated Audio")
+        print(f"{'─'*60}\n")
+        
+        def patch_code_for_pregenerated_audio(code: str, section_num: int, narration_text: str) -> str:
+            """
+            Modify code to use PreGeneratedAudioService instead of ElevenLabsService.
+            """
+            # Replace ElevenLabsService import and usage with PreGeneratedAudioService
+            patched = code
+            
+            # Add PreGeneratedAudioService import if not present
+            if "PreGeneratedAudioService" not in patched:
+                # Find the import section
+                if "from services.tts" in patched or "from tts import" in patched:
+                    # Replace ElevenLabsService with PreGeneratedAudioService
+                    patched = patched.replace(
+                        "from tts import ElevenLabsTimedService",
+                        "from services.tts.pregenerated import PreGeneratedAudioService"
+                    )
+                    patched = patched.replace(
+                        "from services.tts import ElevenLabsTimedService",
+                        "from services.tts.pregenerated import PreGeneratedAudioService"
+                    )
+                else:
+                    # Add import after manim_voiceover import
+                    if "from manim_voiceover import VoiceoverScene" in patched:
+                        patched = patched.replace(
+                            "from manim_voiceover import VoiceoverScene",
+                            "from manim_voiceover import VoiceoverScene\nfrom services.tts.pregenerated import PreGeneratedAudioService"
+                        )
+            
+            # Replace set_speech_service call
+            import re
+            audio_path = f"/outputs/{job_id}/voiceovers/section_{section_num}.mp3"
+            
+            # Pattern to match set_speech_service with ElevenLabsService
+            elevenlabs_pattern = r'self\.set_speech_service\(ElevenLabsTimedService\([^)]*\)\)'
+            replacement = f'self.set_speech_service(PreGeneratedAudioService(audio_file_path="{audio_path}", fallback_to_elevenlabs=True))'
+            
+            patched = re.sub(elevenlabs_pattern, replacement, patched)
+            
+            # Also handle cases where it's split across lines or uses different formatting
+            if "ElevenLabsTimedService" in patched and "set_speech_service" in patched:
+                # More aggressive replacement
+                lines = patched.split('\n')
+                new_lines = []
+                in_tts_setup = False
+                skip_next = False
+                
+                for i, line in enumerate(lines):
+                    if skip_next:
+                        skip_next = False
+                        continue
+                        
+                    if "set_speech_service" in line and "ElevenLabsTimedService" in line:
+                        new_lines.append(f'        self.set_speech_service(PreGeneratedAudioService(audio_file_path="{audio_path}", fallback_to_elevenlabs=True))')
+                        in_tts_setup = False
+                    elif "set_speech_service" in line:
+                        # Multi-line set_speech_service
+                        in_tts_setup = True
+                        new_lines.append(f'        self.set_speech_service(PreGeneratedAudioService(audio_file_path="{audio_path}", fallback_to_elevenlabs=True))')
+                    elif in_tts_setup and ("ElevenLabsTimedService" in line or ")" in line):
+                        # Skip lines that are part of the old set_speech_service call
+                        in_tts_setup = ")" not in line
+                        continue
+                    else:
+                        new_lines.append(line)
+                        
+                patched = '\n'.join(new_lines)
+            
+            return patched
+        
+        # Patch all code variants to use pre-generated audio
+        patched_code_variants = {}
+        for section_num, code_variants in section_code_variants.items():
+            if section_num in audio_map and audio_map[section_num]:
+                # Audio available - patch code
+                narration_text = audio_map[section_num]['narration_text']
+                patched_variants = []
+                for variant_num, code in code_variants:
+                    patched_code = patch_code_for_pregenerated_audio(code, section_num, narration_text)
+                    patched_variants.append((variant_num, patched_code))
+                    print(f"✓ Section {section_num} V{variant_num}: Patched to use pre-generated audio")
+                patched_code_variants[section_num] = patched_variants
+            else:
+                # No audio - use original code with ElevenLabsService
+                print(f"⚠️  Section {section_num}: No pre-generated audio, using original code")
+                patched_code_variants[section_num] = code_variants
+        
+        print(f"✓ Patched {len(patched_code_variants)} sections to use pre-generated audio\n")
+        
+        # STAGE 4: Rendering with Correctly Matched Audio
+        print(f"\n{'─'*60}")
+        print("🎬 STAGE 4: Rendering with Matched Audio")
+        print(f"{'─'*60}\n")
+        
+        yield update_job_progress({
+            "status": "processing",
+            "stage": 4,
+            "stage_name": "Rendering",
+            "progress_percentage": 65,
+            "message": f"Rendering {len(patched_code_variants)} sections with matched audio...",
+            "job_id": job_id
+        })
+        
+        async def render_section_with_variants(section_num, code_variants):
+            """Render a section using its code variants and pre-generated audio."""
+            try:
                 # Try rendering with fallback logic
                 success, video_path, error, gcs_upload_success = await try_render_with_fallback(section_num, code_variants, fix_attempt=0)
                 
@@ -799,20 +867,22 @@ Generate the fixed code now:"""
                     return (section_num, None, error, False)
                     
             except Exception as e:
-                print(f"❌ [Section {section_num}] Fatal error: {type(e).__name__}: {e}")
+                print(f"❌ [Section {section_num}] Render error: {type(e).__name__}: {e}")
                 import traceback
                 print(traceback.format_exc())
                 return (section_num, None, str(e), False)
-
-        # Process all sections in parallel
-        async def process_all_sections():
-            """Process all sections with variants and retries."""
-            print(f"🎯 Starting parallel processing of {len(video_structure)} sections (3 variants each)...")
-            section_tasks = [process_section_with_variants((i, section)) for i, section in enumerate(video_structure)]
-            results = await asyncio.gather(*section_tasks)
+        
+        async def render_all_sections():
+            """Render all sections with their code variants."""
+            print(f"🎯 Rendering {len(patched_code_variants)} sections...")
+            tasks = [
+                render_section_with_variants(section_num, code_variants)
+                for section_num, code_variants in patched_code_variants.items()
+            ]
+            results = await asyncio.gather(*tasks)
             return results
         
-        render_results = asyncio.run(process_all_sections())
+        render_results = asyncio.run(render_all_sections())
         print(f"\n✓ All rendering containers completed")
 
         # Reload volume to see files written by render containers
@@ -953,17 +1023,17 @@ Return ONLY the title text, nothing else."""
             "job_id": job_id
         })
 
-        # STAGE 3: Concatenate all sections
+        # STAGE 5: Concatenate all sections
         print(f"\n{'─'*60}")
-        print("🔗 STAGE 3: Concatenating Videos")
+        print("🔗 STAGE 5: Concatenating Videos")
         print(f"{'─'*60}")
         print(f"   Total sections to combine: {len(scene_videos)}")
 
         yield update_job_progress({
             "status": "processing",
-            "stage": 3,
+            "stage": 5,
             "stage_name": "Concatenating",
-            "progress_percentage": 80,
+            "progress_percentage": 85,
             "message": "Combining all sections...",
             "job_id": job_id
         })
@@ -1062,9 +1132,9 @@ Return ONLY the title text, nothing else."""
             "job_id": job_id
         })
 
-        # STAGE 4: Upload disabled (Supabase integration temporarily removed)
+        # STAGE 6: Upload disabled (Supabase integration temporarily removed)
         print(f"\n{'─'*60}")
-        print("✅ STAGE 4: Video Generation Complete")
+        print("✅ STAGE 6: Video Generation Complete")
         print(f"{'─'*60}")
 
         print(f"   Video path: {final_video}")
