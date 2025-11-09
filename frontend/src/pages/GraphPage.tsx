@@ -239,7 +239,7 @@ export const GraphPage: React.FC = () => {
                       </div>
                       <button
                         onClick={() => navigate("/")}
-                        className="px-4 py-2 bg-blue-600/90 hover:bg-blue-600 text-white rounded-lg transition-colors border border-blue-500/50 hover:border-blue-400"
+                        className="px-4 py-2 bg-indigo-600/90 hover:bg-indigo-600 text-white rounded-lg transition-colors border border-indigo-500/50 hover:border-indigo-400"
                       >
                         Return to Home
                       </button>

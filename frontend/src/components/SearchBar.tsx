@@ -92,7 +92,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search nodes... (e.g., 'how graphs work')"
-          className="w-full bg-slate-700/80 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none placeholder-slate-400"
+          className="w-full bg-slate-700/80 text-white px-4 py-2 pr-10 rounded-lg border border-slate-600 focus:border-indigo-500 focus:outline-none placeholder-slate-400"
           onFocus={() => {
             if (results.length > 0) setShowResults(true);
           }}

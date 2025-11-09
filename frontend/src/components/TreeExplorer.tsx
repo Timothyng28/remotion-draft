@@ -63,7 +63,7 @@ const ExplorerNode = ({ data }: NodeProps) => {
 
       {/* Node display - either thumbnail or circle */}
       <div className="relative" style={{ pointerEvents: "none" }}>
-        {/* Yellow ring for question nodes - unclickable and always visible */}
+        {/* Amber ring for question nodes - unclickable and always visible */}
         {(data as any).isQuestionNode && (
           <div
             className="absolute pointer-events-none rounded-lg"
@@ -358,11 +358,11 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
       // Check if this node is highlighted from search
       const isHighlighted = highlightedNodeIds.has(treeNode.id);
 
-      // Color logic: Question nodes are always yellow, current nodes are blue, others use branch colors
+      // Color logic: Question nodes are always amber, current nodes are blue, others use branch colors
       const colorIndex = treeNode.branchIndex % nodeColors.length;
       let nodeColor = nodeColors[colorIndex];
       if (isQuestionNode) {
-        nodeColor = "#fbbf24"; // Yellow for question nodes (always)
+        nodeColor = "#fbbf24"; // Amber for question nodes (always)
       } else if (isCurrent) {
         nodeColor = "#3b82f6"; // Blue for current video nodes
       } else if (isHighlighted) {
@@ -576,31 +576,39 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
     : "w-full h-full dot-bg";
 
   return (
-    <div className={containerClasses}>
-      <div className="w-full h-full">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          onNodeClick={handleNodeClick}
-          onPaneClick={handleBackgroundClick}
-          fitView
-          fitViewOptions={{ padding: 0.15, minZoom: 0.5, maxZoom: 1.5 }}
-          minZoom={0.3}
-          maxZoom={2}
-          proOptions={{ hideAttribution: true }}
-          nodesDraggable={isModal}
-          nodesConnectable={false}
-          elementsSelectable={true}
-          panOnDrag={[1, 2]}
-          selectionOnDrag={false}
-          panOnScroll={true}
-          zoomOnScroll={true}
-          zoomOnPinch={true}
-          zoomOnDoubleClick={false}
-        >
-          <Background color="#1a1a1a" gap={20} size={1} />
-          <style>{`
+    <>
+      <style>{`
+        .dot-bg {
+          background-color: #0a0a0a;
+          background-image: radial-gradient(circle, #3a3a3a 1px, transparent 1px);
+          background-size: 24px 24px;
+        }
+      `}</style>
+      <div className={containerClasses}>
+        <div className="w-full h-full">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodeClick={handleNodeClick}
+            onPaneClick={handleBackgroundClick}
+            fitView
+            fitViewOptions={{ padding: 0.15, minZoom: 0.5, maxZoom: 1.5 }}
+            minZoom={0.3}
+            maxZoom={2}
+            proOptions={{ hideAttribution: true }}
+            nodesDraggable={isModal}
+            nodesConnectable={false}
+            elementsSelectable={true}
+            panOnDrag={[1, 2]}
+            selectionOnDrag={false}
+            panOnScroll={true}
+            zoomOnScroll={true}
+            zoomOnPinch={true}
+            zoomOnDoubleClick={false}
+          >
+            <Background color="transparent" gap={20} size={1} />
+            <style>{`
             .react-flow__node {
               z-index: 1 !important;
             }
@@ -611,153 +619,154 @@ export const TreeExplorer: React.FC<TreeExplorerProps> = ({
               z-index: 2 !important;
             }
           `}</style>
-          <Controls
-            style={{
-              background: "#0f0f0f",
-              border: "1px solid #2a2a2a",
-              borderRadius: "8px",
-            }}
-          />
+            <Controls
+              style={{
+                background: "#0a0a0a",
+                border: "1px solid #2a2a2a",
+                borderRadius: "8px",
+              }}
+            />
 
-          {/* Header panel with title, search, and close button */}
-          <Panel position="top-center">
-            <div
-              className="bg-slate-900/90 backdrop-blur-sm border border-slate-800/50 rounded-lg px-6 py-3 shadow-xl"
-              style={{ minWidth: "700px", overflow: "visible" }}
-            >
+            {/* Header panel with title, search, and close button */}
+            <Panel position="top-center">
               <div
-                className="flex items-center gap-4"
-                style={{ overflow: "visible" }}
+                className="bg-slate-900/90 backdrop-blur-sm border border-slate-800/50 rounded-lg px-6 py-3 shadow-xl"
+                style={{ minWidth: "700px", overflow: "visible" }}
               >
-                <h2 className="text-white text-lg font-semibold whitespace-nowrap">
-                  Learning Path Explorer
-                </h2>
-
-                {/* Search Input */}
                 <div
-                  className="relative flex-shrink-0"
-                  style={{ width: "350px", minWidth: "350px" }}
+                  className="flex items-center gap-4"
+                  style={{ overflow: "visible" }}
                 >
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search nodes..."
-                    className="w-full bg-slate-800/80 text-white px-4 py-2 pr-10 rounded-lg border border-slate-700/50 focus:border-blue-500 focus:outline-none placeholder-slate-500 text-sm"
-                    style={{ display: "block", minHeight: "40px" }}
-                  />
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    {isSearching ? (
-                      <svg
-                        className="animate-spin h-4 w-4 text-blue-400"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
+                  <h2 className="text-white text-lg font-semibold whitespace-nowrap">
+                    Learning Path Explorer
+                  </h2>
+
+                  {/* Search Input */}
+                  <div
+                    className="relative flex-shrink-0"
+                    style={{ width: "350px", minWidth: "350px" }}
+                  >
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search nodes..."
+                      className="w-full bg-slate-800/80 text-white px-4 py-2 pr-10 rounded-lg border border-slate-700/50 focus:border-indigo-500 focus:outline-none placeholder-slate-500 text-sm"
+                      style={{ display: "block", minHeight: "40px" }}
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      {isSearching ? (
+                        <svg
+                          className="animate-spin h-4 w-4 text-blue-400"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-slate-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
                           stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-slate-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    )}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 bg-slate-800/80 hover:bg-slate-800 text-white rounded-lg transition-colors text-sm font-medium whitespace-nowrap border border-slate-700/50 hover:border-slate-600/70"
-                >
-                  Close (ESC)
-                </button>
-              </div>
-            </div>
-          </Panel>
-
-          {/* Search Results Panel */}
-          {showResults && searchResults.length > 0 && (
-            <Panel position="top-right">
-              <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-800/50 rounded-lg shadow-xl w-80 max-h-96 overflow-y-auto">
-                <div className="px-4 py-2 border-b border-slate-800/50">
-                  <div className="text-white font-semibold text-sm">
-                    Search Results ({searchResults.length})
-                  </div>
-                </div>
-                <div>
-                  {searchResults.map((result) => (
-                    <button
-                      key={result.nodeId}
-                      onClick={() => handleSearchResultClick(result.nodeId)}
-                      className="w-full px-4 py-3 text-left hover:bg-slate-800/60 transition-colors border-b border-slate-800/50 last:border-b-0"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-semibold text-white truncate">
-                            {result.segment.title || result.segment.topic}
-                          </div>
-                          <div className="text-xs text-slate-400 mt-1 line-clamp-2">
-                            {result.description}
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0 text-xs font-medium text-green-400">
-                          {(result.similarity * 100).toFixed(0)}%
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2 bg-slate-800/80 hover:bg-slate-800 text-white rounded-lg transition-colors text-sm font-medium whitespace-nowrap border border-slate-700/50 hover:border-slate-600/70"
+                  >
+                    Close (ESC)
+                  </button>
                 </div>
               </div>
             </Panel>
-          )}
 
-          {/* Legend panel */}
-          <Panel position="bottom-right">
-            <div className="bg-slate-900/90 backdrop-blur-sm border border-slate-800/50 rounded-lg px-4 py-3 text-sm">
-              <div className="flex flex-col gap-2 text-slate-300">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-blue-500 border-2 border-blue-400"></div>
-                  <span>Current Node</span>
+            {/* Search Results Panel */}
+            {showResults && searchResults.length > 0 && (
+              <Panel position="top-right">
+                <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-800/50 rounded-lg shadow-xl w-80 max-h-96 overflow-y-auto">
+                  <div className="px-4 py-2 border-b border-slate-800/50">
+                    <div className="text-white font-semibold text-sm">
+                      Search Results ({searchResults.length})
+                    </div>
+                  </div>
+                  <div>
+                    {searchResults.map((result) => (
+                      <button
+                        key={result.nodeId}
+                        onClick={() => handleSearchResultClick(result.nodeId)}
+                        className="w-full px-4 py-3 text-left hover:bg-slate-800/60 transition-colors border-b border-slate-800/50 last:border-b-0"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-white truncate">
+                              {result.segment.title || result.segment.topic}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-1 line-clamp-2">
+                              {result.description}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 text-xs font-medium text-green-400">
+                            {(result.similarity * 100).toFixed(0)}%
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-slate-600 border-2 border-slate-500"></div>
-                  <span>Visited Node</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-slate-700 border-2 border-dashed border-slate-500"></div>
-                  <span>Leaf Node</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-green-500 border-2 border-green-400"></div>
-                  <span>Search Match</span>
+              </Panel>
+            )}
+
+            {/* Legend panel */}
+            <Panel position="bottom-right">
+              <div className="bg-slate-900/90 backdrop-blur-sm border border-slate-800/50 rounded-lg px-4 py-3 text-sm">
+                <div className="flex flex-col gap-2 text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-blue-500 border-2 border-blue-400"></div>
+                    <span>Current Node</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-slate-600 border-2 border-slate-500"></div>
+                    <span>Visited Node</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-slate-700 border-2 border-dashed border-slate-500"></div>
+                    <span>Leaf Node</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-green-500 border-2 border-green-400"></div>
+                    <span>Search Match</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Panel>
-        </ReactFlow>
+            </Panel>
+          </ReactFlow>
+        </div>
       </div>
-    </div>
+    </>
   );
 };

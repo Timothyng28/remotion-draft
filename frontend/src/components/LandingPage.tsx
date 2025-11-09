@@ -136,7 +136,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
       {hasActiveSession && (
         <button
           onClick={() => navigate("/graph")}
-          className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-blue-600/90 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all border border-blue-500/50 hover:border-blue-400 flex items-center gap-2 shadow-lg hover:shadow-xl z-10"
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-indigo-600/90 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-all border border-indigo-500/50 hover:border-indigo-400 flex items-center gap-2 shadow-lg hover:shadow-xl z-10"
           title="View graph"
         >
           <svg
@@ -183,8 +183,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
           <div className="relative">
             {/* Drag and drop zone overlay */}
             {isDragging && (
-              <div className="absolute inset-0 bg-blue-500/20 border-2 border-blue-500 border-dashed rounded-xl flex items-center justify-center z-10 pointer-events-none">
-                <p className="text-blue-300 font-semibold text-sm sm:text-base">
+              <div className="absolute inset-0 bg-indigo-500/20 border-2 border-indigo-500 border-dashed rounded-xl flex items-center justify-center z-10 pointer-events-none">
+                <p className="text-indigo-300 font-semibold text-sm sm:text-base">
                   Drop image here
                 </p>
               </div>
@@ -200,12 +200,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               placeholder="e.g., React Hooks, Quantum Physics... or drag an image"
-              className={`w-full px-4 sm:px-6 py-4 sm:py-5 text-base sm:text-lg bg-slate-800/50 backdrop-blur-sm text-white placeholder-slate-500 rounded-xl border-2 transition-all duration-300 focus:outline-none pr-28 sm:pr-32 ${
+              className={`w-full px-4 sm:px-6 py-4 sm:py-5 text-base sm:text-lg backdrop-blur-sm text-white placeholder-slate-500 rounded-xl border-2 transition-all duration-300 focus:outline-none pr-28 sm:pr-32 hover:shadow-lg hover:shadow-indigo-500/20 ${
                 isFocused
-                  ? "border-blue-500 shadow-lg shadow-blue-500/30"
+                  ? "bg-slate-800/80 border-indigo-500 shadow-lg shadow-indigo-500/30"
                   : isDragging
-                  ? "border-blue-500 border-dashed"
-                  : "border-slate-700"
+                  ? "bg-slate-800/50 border-indigo-500 border-dashed"
+                  : "bg-slate-800/50 border-slate-700 hover:border-indigo-500/50"
               }`}
             />
 
@@ -213,13 +213,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
             <button
               type="submit"
               disabled={!topic.trim() && !imageData}
-              className={`absolute right-2 top-1/2 transform -translate-y-1/2 px-4 sm:px-8 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-300 text-sm sm:text-base ${
+              className={`absolute right-3 top-1/2 transform -translate-y-1/2 px-4 sm:px-8 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-300 text-sm sm:text-base ${
                 topic.trim() || imageData
-                  ? "bg-blue-600 hover:bg-blue-700 text-white hover:scale-105 shadow-lg"
+                  ? "bg-indigo-600 hover:bg-indigo-600 text-white hover:scale-105 shadow-lg"
                   : "bg-slate-700 text-slate-500 cursor-not-allowed"
               }`}
             >
-              Generate
+              Go!
             </button>
           </div>
 
@@ -276,7 +276,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
                   id="voice-select"
                   value={selectedVoice}
                   onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="appearance-none pl-7 sm:pl-8 pr-6 sm:pr-7 py-2 rounded-lg text-xs sm:text-sm font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 hover:border-blue-500/60 focus:border-blue-500 focus:outline-none transition-all duration-300 cursor-pointer w-full sm:w-auto"
+                  className="appearance-none pl-7 sm:pl-8 pr-6 sm:pr-7 py-2 rounded-lg text-xs sm:text-sm font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 hover:border-indigo-500/60 focus:border-indigo-500 focus:outline-none transition-all duration-300 cursor-pointer w-full sm:w-auto"
                 >
                   {AVAILABLE_VOICES.map((voice) => (
                     <option key={voice.id} value={voice.id}>

@@ -128,7 +128,7 @@ export const QuizQuestionOverlay: FC<QuizQuestionOverlayProps> = ({
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={onContinue}
-                className="rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:ring-offset-2 focus:ring-offset-slate-900"
+                className="rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-slate-900"
               >
                 Try Again
               </button>
@@ -252,7 +252,7 @@ export const QuizQuestionOverlay: FC<QuizQuestionOverlayProps> = ({
                   placeholder="Type your answer here..."
                   rows={4}
                   disabled={isEvaluating}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <p className="mt-2 text-xs text-slate-400">
                   Answer based on what you learned in this lesson.
@@ -271,7 +271,7 @@ export const QuizQuestionOverlay: FC<QuizQuestionOverlayProps> = ({
               <button
                 type="submit"
                 disabled={!answer.trim() || isEvaluating}
-                className="w-full rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+                className="w-full rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
               >
                 {isEvaluating ? (
                   <span className="flex items-center gap-2">

@@ -12,7 +12,7 @@ export const LoadingSpinner: React.FC = () => {
       {/* Animated gradient background orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
       
       {/* Main content */}
@@ -23,18 +23,18 @@ export const LoadingSpinner: React.FC = () => {
           <div className="absolute inset-0 border-4 border-transparent border-t-blue-500 border-r-blue-400 rounded-full animate-spin" />
           
           {/* Middle ring */}
-          <div className="absolute inset-3 border-4 border-transparent border-b-purple-500 border-l-purple-400 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
+          <div className="absolute inset-3 border-4 border-transparent border-b-blue-600 border-l-blue-500 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
           
           {/* Inner glow */}
-          <div className="absolute inset-6 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-full animate-pulse" />
+          <div className="absolute inset-6 bg-gradient-to-br from-blue-500/30 to-blue-600/30 rounded-full animate-pulse" />
           
           {/* Center dot */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full shadow-lg shadow-blue-500/50" />
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full shadow-lg shadow-blue-500/50" />
         </div>
         
         {/* Text content */}
         <div className="mt-12 space-y-3 text-center max-w-md mx-auto px-4">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent animate-pulse">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 bg-clip-text text-transparent animate-pulse">
             Generating Your Lesson
           </h2>
           <p className="text-slate-300 text-lg">
@@ -44,7 +44,7 @@ export const LoadingSpinner: React.FC = () => {
           {/* Animated progress dots */}
           <div className="flex justify-center space-x-2 pt-6">
             <div className="w-3 h-3 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full animate-bounce shadow-lg shadow-blue-500/50" style={{ animationDelay: '0ms' }} />
-            <div className="w-3 h-3 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full animate-bounce shadow-lg shadow-purple-500/50" style={{ animationDelay: '150ms' }} />
+            <div className="w-3 h-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full animate-bounce shadow-lg shadow-blue-500/50" style={{ animationDelay: '150ms' }} />
             <div className="w-3 h-3 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full animate-bounce shadow-lg shadow-blue-500/50" style={{ animationDelay: '300ms' }} />
           </div>
         </div>

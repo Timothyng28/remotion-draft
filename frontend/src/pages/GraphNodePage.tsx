@@ -85,8 +85,16 @@ export const GraphNodePage: React.FC = () => {
   }
 
   return (
-    <div className="relative w-full h-screen flex bg-slate-900">
-      <VideoController
+    <>
+      <style>{`
+        .dot-bg {
+          background-color: #0a0a0a;
+          background-image: radial-gradient(circle, #3a3a3a 1px, transparent 1px);
+          background-size: 24px 24px;
+        }
+      `}</style>
+      <div className="relative w-full h-screen flex dot-bg">
+        <VideoController
         initialTopic={cachedSession.context.initialTopic || "Graph View"}
         onError={(error) => console.error("VideoController error:", error)}
         initialSession={cachedSession}
@@ -402,7 +410,7 @@ export const GraphNodePage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => navigate("/graph")}
-                    className="w-full mt-2 bg-blue-600/80 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-all border border-blue-500 hover:border-blue-400 flex items-center justify-center gap-2"
+                    className="w-full mt-2 bg-indigo-600/80 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg transition-all border border-indigo-500 hover:border-indigo-400 flex items-center justify-center gap-2"
                     title="View graph"
                   >
                     <svg
@@ -511,12 +519,12 @@ export const GraphNodePage: React.FC = () => {
                   >
                     {currentSegment.isQuestionNode ?? false ? (
                       <div
-                        className="flex items-center justify-center bg-gradient-to-br from-yellow-900/30 to-slate-900"
+                        className="flex items-center justify-center bg-gradient-to-br from-amber-900/30 to-slate-900"
                         style={{ width: "100%", height: "450px" }}
                       >
                         <div className="text-center text-white px-8">
                           <div className="text-6xl mb-4">❓</div>
-                          <div className="text-2xl mb-2 font-semibold text-yellow-400">
+                          <div className="text-2xl mb-2 font-semibold text-amber-400">
                             Knowledge Check
                           </div>
                           <div className="text-lg text-slate-300">
@@ -576,7 +584,7 @@ export const GraphNodePage: React.FC = () => {
                       <button
                         onClick={() => setIsAutoPlayEnabled(!isAutoPlayEnabled)}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          isAutoPlayEnabled ? "bg-blue-600" : "bg-slate-600"
+                          isAutoPlayEnabled ? "bg-indigo-600" : "bg-slate-600"
                         }`}
                         title={
                           isAutoPlayEnabled
@@ -669,6 +677,7 @@ export const GraphNodePage: React.FC = () => {
           );
         }}
       </VideoController>
-    </div>
+      </div>
+    </>
   );
 };

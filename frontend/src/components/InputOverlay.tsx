@@ -1,17 +1,17 @@
 /**
  * InputOverlay.tsx
- * 
+ *
  * Contextual interaction overlay for the infinite learning experience.
  * - Shows question input when segment has a question
  * - Shows continue/new topic options when no question
  * - Handles loading states during generation and evaluation
  */
 
-import { useState, FormEvent } from "react";
-import { BranchButton } from "./BranchButton";
-import { GenerationCard } from "./GenerationCard";
+import { FormEvent, useState } from "react";
 import { GenerationRequest } from "../controllers/VideoController";
 import { hasCachedSession } from "../services/cachedSessionService";
+import { BranchButton } from "./BranchButton";
+import { GenerationCard } from "./GenerationCard";
 
 interface InputOverlayProps {
   hasQuestion: boolean;
@@ -54,7 +54,7 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (hasQuestion && input.trim()) {
       await onAnswer(input.trim());
       setInput("");
@@ -63,7 +63,7 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
 
   const handleNewTopicSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     const trimmedTopic = newTopicValue.trim();
     if (trimmedTopic) {
       if (hasCachedSession(trimmedTopic)) {
@@ -104,21 +104,21 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
               What do you want to learn about?
             </h3>
           </div>
-          
+
           <form onSubmit={handleNewTopicSubmit} className="flex flex-col gap-3">
             <input
               type="text"
               value={newTopicValue}
               onChange={(e) => setNewTopicValue(e.target.value)}
               placeholder="Enter a new topic..."
-              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               autoFocus
             />
             <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={!newTopicValue.trim()}
-                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+                className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
               >
                 Go
               </button>
@@ -164,9 +164,7 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
             <h3 className="text-blue-400 text-xs font-semibold uppercase tracking-wide mb-2">
               Question
             </h3>
-            <p className="text-white text-sm">
-              {questionText}
-            </p>
+            <p className="text-white text-sm">{questionText}</p>
           </div>
 
           {/* Input Form */}
@@ -176,13 +174,13 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your answer..."
-              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               disabled={isEvaluating}
             />
             <button
               type="submit"
               disabled={!input.trim() || isEvaluating}
-              className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+              className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
             >
               Submit
             </button>
@@ -196,7 +194,7 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
               onAskCachedQuestion={onAskCachedQuestion}
               disabled={isEvaluating}
             />
-            
+
             <button
               onClick={() => setShowNewTopicInput(true)}
               className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors"
@@ -238,7 +236,7 @@ export const InputOverlay: React.FC<InputOverlayProps> = ({
             onAskCachedQuestion={onAskCachedQuestion}
             disabled={false}
           />
-          
+
           <button
             onClick={() => setShowNewTopicInput(true)}
             className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors"

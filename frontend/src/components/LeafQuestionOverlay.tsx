@@ -68,13 +68,13 @@ export const LeafQuestionOverlay: React.FC<LeafQuestionOverlayProps> = ({
           <div className="p-16 flex items-center justify-center">
             <div className="relative w-20 h-20">
               {/* Outer spinning ring */}
-              <div className="absolute inset-0 border-4 border-transparent border-t-yellow-500 rounded-full animate-spin" />
+              <div className="absolute inset-0 border-4 border-transparent border-t-amber-500 rounded-full animate-spin" />
               
               {/* Inner pulsing circle */}
-              <div className="absolute inset-4 bg-yellow-500/30 rounded-full animate-pulse" />
+              <div className="absolute inset-4 bg-amber-500/30 rounded-full animate-pulse" />
               
               {/* Center dot */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-yellow-500 rounded-full" />
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-amber-500 rounded-full" />
             </div>
           </div>
         )}
@@ -82,10 +82,10 @@ export const LeafQuestionOverlay: React.FC<LeafQuestionOverlayProps> = ({
         {/* Ready State - Show Question */}
         {status === 'ready' && (
           <div className="p-8">
-            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="text-4xl">❓</div>
-                <h2 className="text-2xl font-bold text-yellow-400">Knowledge Check</h2>
+                <h2 className="text-2xl font-bold text-amber-400">Knowledge Check</h2>
               </div>
               {onStartOver && (
                 <button
@@ -112,7 +112,7 @@ export const LeafQuestionOverlay: React.FC<LeafQuestionOverlayProps> = ({
                 onChange={(e) => onAnswerChange(e.target.value)}
                 placeholder="Type your answer here..."
                 rows={6}
-                className="w-full px-4 py-3 bg-slate-900 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 bg-slate-900 text-white border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
                 autoFocus
               />
 
@@ -122,7 +122,7 @@ export const LeafQuestionOverlay: React.FC<LeafQuestionOverlayProps> = ({
                   disabled={!answer.trim() || isSubmitting}
                   className={`px-6 py-3 rounded-lg font-semibold transition-all ${
                     answer.trim() && !isSubmitting
-                      ? 'bg-yellow-500 hover:bg-yellow-600 text-slate-900 cursor-pointer'
+                      ? 'bg-amber-500 hover:bg-amber-600 text-slate-900 cursor-pointer'
                       : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                   }`}
                 >
@@ -138,13 +138,13 @@ export const LeafQuestionOverlay: React.FC<LeafQuestionOverlayProps> = ({
           <div className="p-16 flex items-center justify-center">
             <div className="relative w-20 h-20">
               {/* Outer spinning ring */}
-              <div className="absolute inset-0 border-4 border-transparent border-t-purple-500 rounded-full animate-spin" />
+              <div className="absolute inset-0 border-4 border-transparent border-t-blue-500 rounded-full animate-spin" />
               
               {/* Inner pulsing circle */}
-              <div className="absolute inset-4 bg-purple-500/30 rounded-full animate-pulse" />
+              <div className="absolute inset-4 bg-blue-500/30 rounded-full animate-pulse" />
               
               {/* Center dot */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-purple-500 rounded-full" />
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 rounded-full" />
             </div>
           </div>
         )}

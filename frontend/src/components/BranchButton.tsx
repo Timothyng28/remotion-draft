@@ -86,8 +86,8 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
 
             {/* Drag and drop zone overlay */}
             {isDragging && (
-              <div className="absolute inset-0 top-8 bg-purple-500/20 border-2 border-purple-500 border-dashed rounded-lg flex items-center justify-center z-10 pointer-events-none">
-                <p className="text-purple-300 font-semibold text-sm">
+              <div className="absolute inset-0 top-8 bg-indigo-500/20 border-2 border-indigo-500 border-dashed rounded-lg flex items-center justify-center z-10 pointer-events-none">
+                <p className="text-indigo-300 font-semibold text-sm">
                   Drop image here
                 </p>
               </div>
@@ -100,9 +100,9 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               placeholder="e.g., 'How does energy transfer between objects?', 'Why is this important?', 'Can you explain this more deeply?'"
-              className={`w-full px-3 py-2.5 bg-slate-700 border rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none transition-all ${
+              className={`w-full px-3 py-2.5 bg-slate-700 border rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none transition-all ${
                 isDragging
-                  ? "border-purple-500 border-dashed"
+                  ? "border-indigo-500 border-dashed"
                   : "border-slate-600"
               }`}
               rows={3}
@@ -162,7 +162,7 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
             <button
               type="submit"
               disabled={!question.trim()}
-              className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors font-semibold"
+              className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors font-semibold"
             >
               Generate Videos
             </button>
@@ -188,7 +188,7 @@ export const BranchButton: React.FC<BranchButtonProps> = ({
     <button
       onClick={handleClick}
       disabled={disabled}
-      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-semibold ${className}`}
+      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-semibold ${className}`}
       title="Ask a question about this topic and get personalized video explanations"
     >
       <svg

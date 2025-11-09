@@ -57,7 +57,7 @@ export const ClosingQuestionOverlay: FC<ClosingQuestionOverlayProps> = ({
               {onRetry && (
                 <button
                   onClick={onRetry}
-                  className="rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:ring-offset-2 focus:ring-offset-slate-900"
+                  className="rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-slate-900"
                 >
                   Try Again
                 </button>
@@ -88,7 +88,7 @@ export const ClosingQuestionOverlay: FC<ClosingQuestionOverlayProps> = ({
                   onChange={(e) => onAnswerChange?.(e.target.value)}
                   placeholder="Type your answer here..."
                   rows={4}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
                 />
                 <p className="mt-2 text-xs text-slate-400">
                   Take a moment to reflect on what you&apos;ve learned.
@@ -99,7 +99,7 @@ export const ClosingQuestionOverlay: FC<ClosingQuestionOverlayProps> = ({
             <div className="mt-6 flex flex-col items-center justify-end gap-3 sm:flex-row">
               <button
                 onClick={onRestart}
-                className="w-full rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:ring-offset-2 focus:ring-offset-slate-900 sm:w-auto"
+                className="w-full rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:ring-offset-2 focus:ring-offset-slate-900 sm:w-auto"
               >
                 Start a New Lesson
               </button>
