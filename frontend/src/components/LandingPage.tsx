@@ -199,7 +199,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              placeholder="e.g., Trigonometry, Quantum Physics... or drag an image"
+              placeholder="e.g., Trigonometry, Quantum Physics... or drag an image of your homework!"
               className={`w-full px-4 sm:px-6 py-4 sm:py-5 text-base sm:text-lg backdrop-blur-sm text-white placeholder-slate-500 rounded-xl border-2 transition-all duration-300 focus:outline-none pr-28 sm:pr-32 hover:shadow-lg hover:shadow-indigo-500/20 ${
                 isFocused
                   ? "bg-slate-800/80 border-indigo-500 shadow-lg shadow-indigo-500/30"
