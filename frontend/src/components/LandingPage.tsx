@@ -126,7 +126,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
         {/* Main Content */}
         <div className="text-center mb-8 sm:mb-12 space-y-4 sm:space-y-6">
           {/* Title */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 animate-fade-in lilita-one-regular">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-white mb-4 animate-fade-in lilita-one-regular">
             VideoGraph
           </h1>
 
@@ -136,14 +136,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
             style={{ animationDelay: "0.2s" }}
           >
             What do you want to learn today?
-          </p>
-
-          <p
-            className="text-sm sm:text-base text-slate-400 max-w-lg mx-auto animate-fade-in px-4"
-            style={{ animationDelay: "0.4s" }}
-          >
-            Enter any topic and our AI will create a personalized, interactive
-            video lesson just for you.
           </p>
         </div>
 
@@ -227,9 +219,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
                 </svg>
                 Attach Image
               </button>
-              <p className="text-xs text-slate-500 text-center sm:text-left">
-                Optional: Add an image for visual context
-              </p>
             </div>
 
             {/* Image preview */}
