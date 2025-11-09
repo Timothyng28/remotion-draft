@@ -1007,7 +1007,10 @@ export async function generateAdaptiveTopic(
     voiceoverScript?: string;
   }>,
   wasCorrect: boolean,
-  context: LearningContext
+  context: LearningContext,
+  question?: string,
+  userAnswer?: string,
+  evaluationReasoning?: string
 ): Promise<{
   success: boolean;
   topic?: string;
@@ -1036,11 +1039,34 @@ export async function generateAdaptiveTopic(
       ? context.historyTopics.join(' → ') 
       : 'No prior topics';
 
-    const difficultyInstruction = wasCorrect 
-      ? 'Generate a MORE COMPLEX or ADVANCED topic that builds upon what they learned. The topic should be related but more challenging - a natural next step for someone who understands the current material well.'
-      : 'Generate a SIMPLER or MORE FUNDAMENTAL topic that reinforces the basics. The topic should be related but easier - helping them build confidence with prerequisite concepts.';
+    // Build question & answer context section if available
+    let questionAnswerContext = '';
+    if (question && userAnswer && evaluationReasoning) {
+      questionAnswerContext = `
+QUESTION & ANSWER CONTEXT:
+Question asked: "${question}"
+User's answer: "${userAnswer}"
+Evaluation: ${evaluationReasoning}
+`;
+    }
 
-    const prompt = `You are an adaptive learning system that personalizes the learning journey based on student performance.
+    const difficultyInstruction = wasCorrect 
+      ? `The user demonstrated understanding of the current concept. Your task is to BUILD ON this mastery by generating a MORE ADVANCED topic that explores deeper aspects, related complexities, or natural extensions of what they've learned.
+
+IMPORTANT: 
+- This should be a NEW learning experience that takes them further
+- Build upon their demonstrated understanding with more sophisticated concepts
+- DO NOT simply review or repeat what they already know
+- Think: "What's the next logical step for someone who gets this?"` 
+      : `The user has a misconception or knowledge gap about the current concept. Your task is to READDRESS this gap by generating a topic that directly clarifies the misunderstanding and builds proper foundations.
+
+IMPORTANT:
+- This should be a NEW learning experience that fills the specific gap
+- Focus on the prerequisite concepts or fundamentals they're missing
+- DO NOT simply repeat the same material - approach it from a different angle or break it down further
+- Think: "What foundational concept would help them understand what they got wrong?"`;
+
+    const prompt = `You are an adaptive learning system that personalizes the learning journey based on detailed student performance data.
 
 CURRENT TOPIC:
 ${currentTopic}
@@ -1050,27 +1076,27 @@ ${pathContext}
 
 TOPIC HISTORY:
 ${historySummary}
-
+${questionAnswerContext}
 STUDENT PERFORMANCE:
-${wasCorrect ? '✓ Answered correctly - demonstrating understanding' : '✗ Answered incorrectly - needs more foundation'}
+${wasCorrect ? '✓ Answered correctly - demonstrating understanding' : '✗ Answered incorrectly - has a knowledge gap or misconception'}
 
 YOUR TASK:
 ${difficultyInstruction}
 
 GUIDELINES:
 1. Stay within the same general domain/subject area
-2. Make the difficulty adjustment meaningful but not extreme
-3. The new topic should feel like a natural continuation of their learning
-4. Keep the topic concise (max 10 words)
-5. Make it specific and concrete, not vague
+2. Use the question/answer context (if provided) to identify SPECIFIC concepts to build on or readdress
+3. The new topic should be meaningfully different but logically connected
+4. Keep the topic concise (max 12 words) but specific
+5. Make it concrete and focused on a clear concept, not vague or repetitive
 
-GOOD EXAMPLES (if current topic is "Binary Search Trees"):
-- If correct: "Self-balancing AVL trees and rotation operations"
-- If incorrect: "Basic binary tree structure and traversal"
+GOOD EXAMPLES (if current topic is "Binary Search Trees" and user got right "What property must BST nodes satisfy?"):
+- If correct: "AVL tree self-balancing through rotation operations"
+- If incorrect: "Tree node relationships and the parent-child hierarchy"
 
-GOOD EXAMPLES (if current topic is "React Hooks"):
-- If correct: "Custom hooks and advanced composition patterns"  
-- If incorrect: "Component state and useState basics"
+GOOD EXAMPLES (if current topic is "React Hooks" and user confused useState with props):
+- If correct: "useEffect hook for side effects and lifecycle management"
+- If incorrect: "Component data flow: props vs state fundamentals"
 
 RESPONSE FORMAT (JSON only, no markdown):
 {

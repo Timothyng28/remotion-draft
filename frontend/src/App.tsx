@@ -601,7 +601,13 @@ export const App: React.FC = () => {
                     
                     try {
                       // Generate follow-up videos based on answer correctness
-                      await generateFollowUpVideos(wasCorrect);
+                      // Pass full context: question, answer, and evaluation reasoning
+                      await generateFollowUpVideos(
+                        wasCorrect,
+                        leafQuestion || undefined,
+                        leafQuestionAnswer || undefined,
+                        leafEvaluationReasoning || undefined
+                      );
                       
                       // After successful generation, close overlay
                       resetLeafQuestionState();
