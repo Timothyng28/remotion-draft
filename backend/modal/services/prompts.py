@@ -3,8 +3,6 @@ Standalone prompts for Modal video generation
 Using original prompts verbatim from backend/prompts.py
 """
 
-import os
-
 # TTS Provider Configuration - ElevenLabs only
 ELEVENLABS_VOICE_ID_DEFAULT = "K80wneyktrw2rE11kA2W"
 
@@ -17,7 +15,7 @@ def get_tts_initialization_code(voice_id=None):
     """
     selected_voice_id = voice_id or ELEVENLABS_VOICE_ID_DEFAULT
     return f'''from services.tts import ElevenLabsTimedService
-  self.set_speech_service(ElevenLabsTimedService(voice_id="{selected_voice_id}", transcription_model=None))'''
+self.set_speech_service(ElevenLabsTimedService(voice_id="{selected_voice_id}", transcription_model=None))'''
 
 MEGA_PLAN_PROMPT = """You are an educational video planner. Create a simple plan for an educational explainer video on any topic.
 
