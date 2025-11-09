@@ -190,7 +190,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
 
           {/* File input and preview */}
           <div className="mt-4 space-y-3">
-            {/* File input button */}
+            {/* File input button and voice selection */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
               <input
                 ref={fileInputRef}
@@ -219,6 +219,52 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
                 </svg>
                 Attach Image
               </button>
+
+              {/* Voice Selection - Compact dropdown */}
+              <div className="relative inline-block w-full sm:w-auto">
+                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                  <svg
+                    className="h-3 w-3 sm:h-4 sm:w-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                    />
+                  </svg>
+                </div>
+                <select
+                  id="voice-select"
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value)}
+                  className="appearance-none pl-7 sm:pl-8 pr-6 sm:pr-7 py-2 rounded-lg text-xs sm:text-sm font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600 hover:border-blue-500/60 focus:border-blue-500 focus:outline-none transition-all duration-300 cursor-pointer w-full sm:w-auto"
+                >
+                  {AVAILABLE_VOICES.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <svg
+                    className="h-3 w-3 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Image preview */}
@@ -281,65 +327,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSubmit }) => {
                 </button>
               );
             })}
-          </div>
-
-          {/* Voice Selection */}
-          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-slate-700/50">
-            <label
-              htmlFor="voice-select"
-              className="block text-slate-400 text-xs sm:text-sm mb-3 text-center font-medium"
-            >
-              Voice Selection
-            </label>
-            <div className="flex justify-center px-2">
-              <div className="relative inline-block w-full sm:w-auto">
-                <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                  <svg
-                    className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                    />
-                  </svg>
-                </div>
-                <select
-                  id="voice-select"
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="appearance-none pl-10 sm:pl-12 pr-8 sm:pr-10 py-3 sm:py-4 rounded-xl text-sm sm:text-base font-medium bg-slate-800/70 text-white border-2 border-slate-700/70 hover:border-blue-500/60 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 cursor-pointer backdrop-blur-md shadow-lg hover:shadow-xl hover:bg-slate-800/90 w-full sm:min-w-[240px]"
-                >
-                  {AVAILABLE_VOICES.map((voice) => (
-                    <option key={voice.id} value={voice.id}>
-                      {voice.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center pointer-events-none">
-                  <svg
-                    className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-            <p className="text-slate-500 text-xs mt-2 text-center px-2">
-              Choose the voice for your video narration
-            </p>
           </div>
         </div>
       </div>
