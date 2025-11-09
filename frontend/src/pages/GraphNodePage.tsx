@@ -678,7 +678,7 @@ export const GraphNodePage: React.FC = () => {
                         if (nextNode) {
                           navigateToNode(nextNode.id);
                           // Explicitly update URL when navigating via button
-                          navigate(`/graph/${nextNode.id}`, { replace: true });
+                          navigate(`/graph/${nextNode.id}`, { replace: false });
                         }
                       }}
                       disabled={
