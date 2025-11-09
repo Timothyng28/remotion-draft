@@ -889,9 +889,9 @@ export const HomePage: React.FC = () => {
                   />
 
                   {/* Left Sidebar */}
-                  <div className="w-80 h-screen bg-slate-800 border-r border-slate-700 flex flex-col">
+                  <div className="w-80 h-screen bg-gray-900 border-r border-gray-700 flex flex-col">
                     {/* Sidebar Header */}
-                    <div className="p-4 border-b border-slate-700">
+                    <div className="p-4 border-b border-gray-700">
                       <button
                         onClick={handleReset}
                         className="w-full bg-slate-700/80 hover:bg-slate-700 text-white px-3 py-2 rounded-lg transition-all border border-slate-600 hover:border-slate-500 flex items-center justify-center gap-2"

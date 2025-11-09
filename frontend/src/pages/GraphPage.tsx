@@ -106,9 +106,9 @@ export const GraphPage: React.FC = () => {
           return (
             <div className="relative w-full h-screen flex dot-bg">
               {/* Left Sidebar */}
-              <div className="w-80 h-screen bg-slate-900/80 backdrop-blur-sm border-r border-slate-800/50 flex flex-col">
+              <div className="w-80 h-screen bg-gray-900/80 backdrop-blur-sm border-r border-gray-800/50 flex flex-col">
                 {/* Sidebar Header */}
-                <div className="p-4 border-b border-slate-800/50">
+                <div className="p-4 border-b border-gray-800/50">
                   <button
                     onClick={() => navigate("/")}
                     className="w-full bg-slate-800/60 hover:bg-slate-800/80 text-white px-3 py-2 rounded-lg transition-all border border-slate-700/50 hover:border-slate-600/70 flex items-center justify-center gap-2"
@@ -134,7 +134,7 @@ export const GraphPage: React.FC = () => {
 
                 {/* Generation Progress Banner */}
                 {hasActiveGenerations && (
-                  <div className="px-4 py-3 border-b border-slate-800/50 bg-blue-900/20">
+                  <div className="px-4 py-3 border-b border-gray-800/50 bg-blue-900/20">
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
                       <div className="text-xs text-blue-400 font-semibold">
@@ -150,7 +150,7 @@ export const GraphPage: React.FC = () => {
 
                 {/* Topic Display */}
                 {currentSegment && (
-                  <div className="px-4 py-3 border-b border-slate-800/50">
+                  <div className="px-4 py-3 border-b border-gray-800/50">
                     <div className="text-xs text-slate-400 mb-1">
                       Currently Learning
                     </div>

@@ -284,7 +284,7 @@ export const TreeVisualizer: React.FC<TreeVisualizerProps> = ({
         }
       `}</style>
       <div
-        className={`bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-lg overflow-hidden hover:bg-slate-800/90 transition-colors glow-border relative ${className}`}
+        className={`bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg overflow-hidden hover:bg-gray-900/90 transition-colors glow-border relative ${className}`}
         style={{ height: "140px", width: "100%", maxWidth: "100%" }}
       >
         {/* History tag in top-left */}
