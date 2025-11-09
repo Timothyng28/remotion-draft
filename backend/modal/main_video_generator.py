@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION - TTS provider
 # ═══════════════════════════════════════════════════════════════════════════
-ELEVENLABS_VOICE_ID = "pqHfZKP75CvOlQylNhV4"  # ElevenLabs voice
+ELEVENLABS_VOICE_ID_DEFAULT = "pqHfZKP75CvOlQylNhV4"  # Default male voice
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SCRIPT EXTRACTION UTILITIES
@@ -353,7 +353,8 @@ def generate_educational_video(
     prompt: str,
     job_id: Optional[str] = None,
     image_context: Optional[str] = None,
-    clerk_user_id: Optional[str] = None
+    clerk_user_id: Optional[str] = None,
+    voice_id: Optional[str] = None
 ):
     """
     Generate a complete educational video from a prompt with optional image context.
@@ -363,6 +364,7 @@ def generate_educational_video(
         job_id: Optional job ID for tracking
         image_context: Optional base64-encoded image to provide visual context
         clerk_user_id: Optional Clerk user ID to associate video with user account
+        voice_id: Optional ElevenLabs voice ID for TTS (defaults to male voice)
 
     Yields:
         Progress updates and final video URL
@@ -383,6 +385,10 @@ def generate_educational_video(
     job_id = job_id or str(uuid.uuid4())
     work_dir = Path(f"/outputs/{job_id}")
     work_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Use provided voice_id or default to male voice
+    selected_voice_id = voice_id or ELEVENLABS_VOICE_ID_DEFAULT
+    print(f"🎤 Using voice ID: {selected_voice_id}")
 
     # Create log buffer to capture all logs for this job
     log_buffer = []
@@ -569,7 +575,7 @@ def generate_educational_video(
                 print(f"📹 [Async {section_num}] Section {section_num}/{len(video_structure)}: {section['section']}")
                 print(f"{'━'*60}")
 
-                section_prompt = f"""{get_manim_prompt()}
+                section_prompt = f"""{get_manim_prompt(selected_voice_id)}
 
 Topic: {prompt}
 Section: {section['section']} (Duration: {section['duration']})
@@ -975,6 +981,7 @@ async def generate_video_api(item: dict):
             "job_id": "optional-job-id",
             "image_context": "optional base64-encoded image",
             "clerk_user_id": "optional clerk user id",
+            "voice_id": "optional ElevenLabs voice ID",
             "code_iterations": 1,
             "video_iterations": 1
         })
@@ -994,6 +1001,7 @@ async def generate_video_api(item: dict):
     job_id = item.get("job_id")
     image_context = item.get("image_context")  # Base64 encoded image
     clerk_user_id = item.get("clerk_user_id")  # Clerk user ID for user association
+    voice_id = item.get("voice_id")  # ElevenLabs voice ID
 
     # Log what we received
     print(f"📥 Received API request:")
@@ -1001,16 +1009,19 @@ async def generate_video_api(item: dict):
     print(f"   Job ID: {job_id}")
     print(f"   Has image: {bool(image_context)}")
     print(f"   Clerk User ID: {clerk_user_id}")
+    print(f"   Voice ID: {voice_id}")
 
     # Check cache (skip if image_context is provided, as it affects generation)
+    # Cache is now voice-aware - different voices get separate cache entries
     if not image_context:
         try:
             from services.cache_service import get_cache_service
             cache_service = get_cache_service()
-            cached_result = cache_service.get_cache(prompt)
+            cached_result = cache_service.get_cache(prompt, voice_id)
             
             if cached_result:
-                print(f"✓ Returning cached result for prompt")
+                voice_info = f" (voice: {voice_id})" if voice_id else " (default voice)"
+                print(f"✓ Returning cached result for prompt{voice_info}")
                 
                 def cached_event_stream():
                     """Stream cached result as SSE"""
@@ -1048,7 +1059,8 @@ async def generate_video_api(item: dict):
                 prompt=prompt,
                 job_id=job_id,
                 image_context=image_context,
-                clerk_user_id=clerk_user_id
+                clerk_user_id=clerk_user_id,
+                voice_id=voice_id
             ):
                 yield f"data: {json.dumps(update)}\n\n"
         except Exception as e:

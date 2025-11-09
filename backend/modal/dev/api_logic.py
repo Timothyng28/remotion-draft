@@ -54,14 +54,16 @@ async def generate_video_api_logic(item: dict, generate_educational_video_fn):
     print(f"   Voice ID: {voice_id}")
 
     # Check cache (skip if image_context is provided, as it affects generation)
+    # Cache is now voice-aware - different voices get separate cache entries
     if not image_context:
         try:
             from services.cache_service import get_cache_service
             cache_service = get_cache_service()
-            cached_result = cache_service.get_cache(prompt)
+            cached_result = cache_service.get_cache(prompt, voice_id)
             
             if cached_result:
-                print(f"✓ Returning cached result for prompt")
+                voice_info = f" (voice: {voice_id})" if voice_id else " (default voice)"
+                print(f"✓ Returning cached result for prompt{voice_info}")
                 
                 def cached_event_stream():
                     """Stream cached result as SSE"""

@@ -62,12 +62,13 @@ class CacheService:
         self.gcs_service = GCSStorageService(bucket_name=bucket_name)
         self.cache_prefix = "cache"
     
-    def get_cache_key(self, normalized_prompt: str) -> str:
+    def get_cache_key(self, normalized_prompt: str, voice_id: str = None) -> str:
         """
-        Generate cache key (GCS path) for a normalized prompt.
+        Generate cache key (GCS path) for a normalized prompt and voice.
         
         Args:
             normalized_prompt: Normalized prompt string
+            voice_id: Optional voice ID for voice-specific caching
             
         Returns:
             GCS path for cache file
@@ -75,14 +76,22 @@ class CacheService:
         if not normalized_prompt:
             raise ValueError("Normalized prompt cannot be empty")
         
+        # Include voice_id in cache key if provided (non-default)
+        default_voice_id = "pqHfZKP75CvOlQylNhV4"
+        if voice_id and voice_id != default_voice_id:
+            # Sanitize voice_id for use in filename
+            safe_voice_id = voice_id.replace("/", "_").replace("\\", "_")
+            return f"{self.cache_prefix}/{normalized_prompt}__voice_{safe_voice_id}.json"
+        
         return f"{self.cache_prefix}/{normalized_prompt}.json"
     
-    def get_cache(self, prompt: str) -> Optional[Dict[str, Any]]:
+    def get_cache(self, prompt: str, voice_id: str = None) -> Optional[Dict[str, Any]]:
         """
-        Retrieve cached result for a prompt.
+        Retrieve cached result for a prompt and voice.
         
         Args:
             prompt: Original prompt text
+            voice_id: Optional voice ID for voice-specific caching
             
         Returns:
             Cached data dictionary if found, None otherwise
@@ -92,7 +101,7 @@ class CacheService:
             if not normalized:
                 return None
             
-            cache_key = self.get_cache_key(normalized)
+            cache_key = self.get_cache_key(normalized, voice_id)
             
             # Try to read from GCS
             try:
@@ -116,13 +125,14 @@ class CacheService:
             print(f"⚠️  Cache lookup error: {type(e).__name__}: {e}")
             return None
     
-    def store_cache(self, prompt: str, cache_data: Dict[str, Any]) -> bool:
+    def store_cache(self, prompt: str, cache_data: Dict[str, Any], voice_id: str = None) -> bool:
         """
-        Store cache result for a prompt.
+        Store cache result for a prompt and voice.
         
         Args:
             prompt: Original prompt text
             cache_data: Dictionary containing cache data to store
+            voice_id: Optional voice ID for voice-specific caching
             
         Returns:
             True if successful, False otherwise
@@ -133,7 +143,7 @@ class CacheService:
                 print(f"⚠️  Cannot cache: normalized prompt is empty")
                 return False
             
-            cache_key = self.get_cache_key(normalized)
+            cache_key = self.get_cache_key(normalized, voice_id)
             
             # Add timestamp if not present
             if "metadata" in cache_data and "created_at" not in cache_data["metadata"]:
